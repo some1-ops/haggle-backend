@@ -1,123 +1,67 @@
 import { supabaseAdmin } from './supabase';
 import { getPlan, type Plan } from './plans';
 
-export interface ResolvedDevice {
-  id: string;
-  hwid: string;
-  planId: string;
+export interface ResolvedUser {
+  id: string; // auth.users.id / profiles.id
+  email: string | undefined;
+  tierId: string;
   plan: Plan;
-  planStatus: string;
+  availableCredits: number;
 }
 
 /**
- * Every desktop app request carries `x-haggle-key: <hwid>` (rename from the
- * old x-natively-key). This is NOT a secret — it's a device identifier, the
- * same role the old HWID-bound trial system played. Real payment
- * entitlement is looked up server-side from Supabase, never trusted from
- * the client. This is the "desktop app should not own your secrets"
- * principle from the migration plan.
- *
- * If you add real user accounts later, swap this for verifying a Supabase
- * Auth JWT from the Authorization header instead — the shape of
- * ResolvedDevice below stays the same either way, so callers don't change.
+ * Desktop app and website both send `Authorization: Bearer <supabase_access_token>`
+ * — the same access_token the website's Supabase Auth session already
+ * produces on sign-in. This is the token handed to the desktop app over the
+ * haggle:// callback described in the login page patch. No separate device
+ * concept anymore — a user's entitlement now genuinely follows their
+ * account across web and desktop, which is the whole point of syncing them.
  */
-export async function resolveDevice(request: Request): Promise<ResolvedDevice | null> {
-  const hwid = request.headers.get('x-haggle-key');
-  if (!hwid) return null;
+export async function resolveUser(request: Request): Promise<ResolvedUser | null> {
+  const authHeader = request.headers.get('authorization');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return null;
 
-  const { data: existing, error: fetchErr } = await supabaseAdmin
-    .from('devices')
-    .select('*')
-    .eq('hwid', hwid)
-    .maybeSingle();
+  const { data: userResult, error: userErr } = await supabaseAdmin.auth.getUser(token);
+  if (userErr || !userResult?.user) return null;
 
-  if (fetchErr) {
-    console.error('resolveDevice fetch error', fetchErr);
+  const { data: profile, error: profileErr } = await supabaseAdmin
+    .from('profiles')
+    .select('subscription_tier, available_credits')
+    .eq('id', userResult.user.id)
+    .single();
+
+  if (profileErr || !profile) {
+    console.error('resolveUser: no profile row for authenticated user', userResult.user.id, profileErr);
     return null;
   }
 
-  let device = existing;
-
-  // First time this device has ever called the API — auto-provision it on
-  // the free plan rather than requiring a separate signup step.
-  if (!device) {
-    const { data: created, error: insertErr } = await supabaseAdmin
-      .from('devices')
-      .insert({ hwid, plan_id: 'free' })
-      .select('*')
-      .single();
-
-    if (insertErr) {
-      console.error('resolveDevice insert error', insertErr);
-      return null;
-    }
-    device = created;
-  }
-
-  const plan = getPlan(device.plan_id) ?? getPlan('free')!;
+  const plan = getPlan(profile.subscription_tier) ?? getPlan('free')!;
 
   return {
-    id: device.id,
-    hwid: device.hwid,
-    planId: device.plan_id,
+    id: userResult.user.id,
+    email: userResult.user.email,
+    tierId: profile.subscription_tier,
     plan,
-    planStatus: device.plan_status,
+    availableCredits: profile.available_credits,
   };
-}
-
-/** Returns the current calendar-month period key, e.g. "2026-08-01". */
-export function currentPeriodStart(): string {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
-    .toISOString()
-    .slice(0, 10);
 }
 
 /**
- * Checks whether a device has quota remaining this period WITHOUT
- * incrementing it — call this before starting a session/chat call.
- * Call recordUsage() only after the call actually succeeds.
+ * Uncapped-credit tiers (Elite/Command list creditsPerMonth: null in
+ * plans.ts, per "higher AI limits" rather than a hard number) still need an
+ * actual ceiling before launch, or a heavy user on Elite has no cost cap at
+ * all now that BYOK is gone — see the pricing discussion in chat. Until a
+ * real number is chosen, treat null as "not credit-gated" and rely on the
+ * per-tier rate limiting you add later, not a bottomless quota.
  */
-export async function checkQuota(device: ResolvedDevice) {
-  const period = currentPeriodStart();
-  const { data } = await supabaseAdmin
-    .from('usage_records')
-    .select('*')
-    .eq('device_id', device.id)
-    .eq('period_start', period)
-    .maybeSingle();
-
-  const sessionsUsed = data?.sessions_used ?? 0;
-  const allowed = sessionsUsed < device.plan.sessionsPerMonth;
-
-  return {
-    allowed,
-    sessionsUsed,
-    sessionsLimit: device.plan.sessionsPerMonth,
-    period,
-  };
+export function hasCreditsRemaining(user: ResolvedUser): boolean {
+  if (user.plan.creditsPerMonth === null) return true;
+  return user.availableCredits > 0;
 }
 
-export async function recordUsage(deviceId: string, opts: { sessionIncrement?: number; minutesIncrement?: number }) {
-  const period = currentPeriodStart();
-  const { data: existing } = await supabaseAdmin
-    .from('usage_records')
-    .select('*')
-    .eq('device_id', deviceId)
-    .eq('period_start', period)
-    .maybeSingle();
-
-  const sessions = (existing?.sessions_used ?? 0) + (opts.sessionIncrement ?? 0);
-  const minutes = Number(existing?.minutes_used ?? 0) + (opts.minutesIncrement ?? 0);
-
-  await supabaseAdmin.from('usage_records').upsert(
-    {
-      device_id: deviceId,
-      period_start: period,
-      sessions_used: sessions,
-      minutes_used: minutes,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'device_id,period_start' }
-  );
+/** Atomic — uses the existing deduct_credit RPC rather than a read-then-write. */
+export async function deductCredit(userId: string) {
+  const { error } = await supabaseAdmin.rpc('deduct_credit', { target_user_id: userId });
+  if (error) console.error('deductCredit RPC failed', error);
 }

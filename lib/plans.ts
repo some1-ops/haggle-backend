@@ -1,75 +1,158 @@
 /**
  * SINGLE SOURCE OF TRUTH for Haggle pricing/entitlements.
+ * GET /v1/pricing returns this. Website, desktop app, and Dodo product
+ * descriptions should all read from here rather than hardcoding numbers.
  *
- * The desktop app, the website, and Dodo Payments should all read from
- * GET /v1/pricing (which returns this file) instead of hardcoding numbers.
- * This is the fix for the 3 different prices currently shown across
- * Haggle API tab / Haggle Pro tab / chat conversation.
- *
- * EDIT THE NUMBERS BELOW to your final decision, then wire Dodo product IDs
- * to the `dodoProductId` field for each plan once created (see DODO SETUP
- * in the README).
+ * IDs map directly to the `subscription_tier` enum in the existing
+ * `profiles` table (haggle website repo, supabase/migrations/003). 'free'
+ * is kept as the internal enum value for Bootstrapper — only the display
+ * name changed — so this doesn't require touching the enum. 'command' and
+ * 'command_yearly' DO need adding; see supabase/migrations/011_command_tier.sql
+ * in this repo.
  */
 
-export type PlanId = 'free' | 'ally' | 'command';
+export type SubscriptionTier =
+  | 'free'
+  | 'elite'
+  | 'elite_yearly'
+  | 'command'
+  | 'command_yearly'
+  | 'mercenary'; // legacy tier, still in the enum — not part of the current ladder
 
-export interface Plan {
-  id: PlanId;
-  name: string;
-  priceUsd: number;
-  billingPeriod: 'month';
-  /** Hard cap on negotiation sessions per period. */
-  sessionsPerMonth: number;
-  /** Extra safety net: max minutes per single session, regardless of session count.
-   *  Protects margin from one very long session blowing past the cost the
-   *  session-count cap assumed. */
-  maxSessionMinutes: number;
-  /** Which client surfaces this plan unlocks. */
-  channels: Array<'extension' | 'desktop_overlay'>;
-  dodoProductId: string | null; // fill in once created in Dodo dashboard
-  features: string[];
+export interface PlanFeatures {
+  byok: boolean; // marketed as "Connect Your Own AI", not "BYOK" — see chat notes
+  customModelProviders: boolean;
+  exports: boolean;
+  liveNegotiationAssistant: boolean;
+  scenarioSandbox: boolean;
+  meetingTranscription: boolean;
+  teamWorkspaces: boolean;
+  sharedNegotiationMemory: boolean;
+  negotiationCrm: boolean;
+  liveCoaching: boolean;
+  behavioralProfiling: boolean;
+  bluffDetection: boolean;
+  contractIntelligence: boolean;
+  advancedAnalytics: boolean;
+  teamPermissions: boolean;
+  /** gates which stealth/overlay mode the desktop app allows */
+  undetectableTier: 'standard' | 'advanced' | 'max';
 }
 
-export const PLANS: Record<PlanId, Plan> = {
+export interface Plan {
+  id: SubscriptionTier;
+  name: string;
+  tagline: string;
+  priceUsd: number | null; // null = contact sales (Enterprise)
+  billingPeriod: 'month' | 'year' | 'custom';
+  creditsPerMonth: number | null; // null = unlimited/custom — see chat notes, pick a real ceiling
+  channels: Array<'extension' | 'desktop_overlay'>;
+  dodoProductId: string | null;
+  features: PlanFeatures;
+}
+
+const baseFeaturesOff: PlanFeatures = {
+  byok: false,
+  customModelProviders: false,
+  exports: false,
+  liveNegotiationAssistant: false,
+  scenarioSandbox: false,
+  meetingTranscription: false,
+  teamWorkspaces: false,
+  sharedNegotiationMemory: false,
+  negotiationCrm: false,
+  liveCoaching: false,
+  behavioralProfiling: false,
+  bluffDetection: false,
+  contractIntelligence: false,
+  advancedAnalytics: false,
+  teamPermissions: false,
+  undetectableTier: 'standard',
+};
+
+const eliteFeatures: PlanFeatures = {
+  ...baseFeaturesOff,
+  byok: true,
+  customModelProviders: true,
+  exports: true,
+  liveNegotiationAssistant: true,
+  scenarioSandbox: true,
+  meetingTranscription: true,
+  undetectableTier: 'advanced',
+};
+
+const commandFeatures: PlanFeatures = {
+  ...eliteFeatures,
+  teamWorkspaces: true,
+  sharedNegotiationMemory: true,
+  negotiationCrm: true,
+  liveCoaching: true,
+  behavioralProfiling: true,
+  bluffDetection: true,
+  contractIntelligence: true,
+  advancedAnalytics: true,
+  teamPermissions: true,
+  undetectableTier: 'max',
+};
+
+export const PLANS: Record<string, Plan> = {
   free: {
     id: 'free',
-    name: 'Free',
+    name: 'Bootstrapper',
+    tagline: 'Learn the ropes.',
     priceUsd: 0,
     billingPeriod: 'month',
-    sessionsPerMonth: 2,
-    maxSessionMinutes: 15,
+    creditsPerMonth: 3, // existing handle_new_user() trigger sets 2 — needs updating, see migration
     channels: ['extension'],
     dodoProductId: null,
-    features: ['2 negotiation sessions/month', 'Extension only'],
+    features: { ...baseFeaturesOff },
   },
-  ally: {
-    id: 'ally',
-    name: 'Ally', // placeholder — confirm real tier name
-    priceUsd: 15,
+  elite: {
+    id: 'elite',
+    name: 'Elite',
+    tagline: 'For people who negotiate to win.',
+    priceUsd: 25,
     billingPeriod: 'month',
-    sessionsPerMonth: 25,
-    maxSessionMinutes: 30,
-    channels: ['extension'],
+    creditsPerMonth: null,
+    channels: ['extension', 'desktop_overlay'],
     dodoProductId: null,
-    features: ['25 sessions/month', 'Extension only', 'Up to 30 min/session'],
+    features: eliteFeatures,
+  },
+  elite_yearly: {
+    id: 'elite_yearly',
+    name: 'Elite (Yearly)',
+    tagline: 'For people who negotiate to win.',
+    priceUsd: 240,
+    billingPeriod: 'year',
+    creditsPerMonth: null,
+    channels: ['extension', 'desktop_overlay'],
+    dodoProductId: null,
+    features: eliteFeatures,
   },
   command: {
     id: 'command',
     name: 'Command',
-    priceUsd: 39, // was 29 in chat — see pricing discussion, raise recommended
+    tagline: 'For people whose negotiations move serious money.',
+    priceUsd: 79,
     billingPeriod: 'month',
-    sessionsPerMonth: 100,
-    maxSessionMinutes: 30,
+    creditsPerMonth: null,
     channels: ['extension', 'desktop_overlay'],
     dodoProductId: null,
-    features: [
-      '100 sessions/month',
-      'Desktop app + invisible overlay',
-      'Up to 30 min/session',
-    ],
+    features: commandFeatures,
+  },
+  command_yearly: {
+    id: 'command_yearly',
+    name: 'Command (Yearly)',
+    tagline: 'For people whose negotiations move serious money.',
+    priceUsd: 790,
+    billingPeriod: 'year',
+    creditsPerMonth: null,
+    channels: ['extension', 'desktop_overlay'],
+    dodoProductId: null,
+    features: commandFeatures,
   },
 };
 
-export function getPlan(planId: string): Plan | null {
-  return (PLANS as Record<string, Plan>)[planId] ?? null;
+export function getPlan(tierId: string): Plan | null {
+  return PLANS[tierId] ?? null;
 }

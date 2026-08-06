@@ -1,18 +1,16 @@
-import { resolveDevice, checkQuota } from '@/lib/auth';
+import { resolveUser } from '@/lib/auth';
 
+/** GET /v1/usage — lets either client show "2 of 3 free negotiations left" etc. */
 export async function GET(request: Request) {
-  const device = await resolveDevice(request);
-  if (!device) {
-    return Response.json({ error: 'Missing or invalid x-haggle-key' }, { status: 401 });
+  const user = await resolveUser(request);
+  if (!user) {
+    return Response.json({ error: 'Missing or invalid Authorization bearer token' }, { status: 401 });
   }
 
-  const quota = await checkQuota(device);
-
   return Response.json({
-    planId: device.planId,
-    planStatus: device.planStatus,
-    sessionsUsed: quota.sessionsUsed,
-    sessionsLimit: quota.sessionsLimit,
-    period: quota.period,
+    tierId: user.tierId,
+    tierName: user.plan.name,
+    availableCredits: user.availableCredits,
+    creditsPerMonth: user.plan.creditsPerMonth, // null = not credit-gated at this tier
   });
 }
