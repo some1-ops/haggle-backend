@@ -28,7 +28,7 @@ function loadEnv() {
             }
           }
         }
-      } catch {}
+      } catch { }
     }
   }
 }
@@ -135,7 +135,7 @@ async function updateProduct(productId: string, cfg: (typeof DODO_PRODUCTS)[numb
         description: cfg.description,
       }),
     });
-  } catch {}
+  } catch { }
 }
 
 async function main() {
@@ -197,8 +197,8 @@ async function main() {
     for (const w of priceDriftWarnings) console.warn(`   - ${w}`);
     console.warn(
       '   To actually change a price: add a new entry to dodo-products.config.ts with a ' +
-        "new internalId (e.g. 'elite_v2'), run this script again, point checkout at the " +
-        'new tier, and archive the old product once existing subscribers have migrated.'
+      "new internalId (e.g. 'elite_v2'), run this script again, point checkout at the " +
+      'new tier, and archive the old product once existing subscribers have migrated.'
     );
   }
 }
