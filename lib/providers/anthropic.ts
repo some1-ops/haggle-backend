@@ -10,7 +10,7 @@ export async function callAnthropic(messages: { role: string; content: string }[
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: model || 'claude-sonnet-4-6',
+      model: model || 'claude-3-5-sonnet-latest',
       max_tokens: 1024,
       messages: messages.filter((m) => m.role !== 'system'),
       system: messages.find((m) => m.role === 'system')?.content,

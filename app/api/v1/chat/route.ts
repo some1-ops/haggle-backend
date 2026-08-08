@@ -1,4 +1,4 @@
-import { resolveUser, hasCreditsRemaining, deductCredit } from '@/lib/auth';
+import { resolveUser } from '@/lib/auth';
 import { callChatProvider, type ChatMessage } from '@/lib/providers';
 
 /**
@@ -19,17 +19,6 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Missing or invalid Authorization bearer token' }, { status: 401 });
   }
 
-  if (!hasCreditsRemaining(user)) {
-    return Response.json(
-      {
-        error: 'Out of credits for this tier',
-        tierId: user.tierId,
-        upgradeUrl: 'https://haggle.algeris.com/pricing',
-      },
-      { status: 429 }
-    );
-  }
-
   type ChatRequestBody = { provider?: string; model?: string; messages?: ChatMessage[] };
   let body: ChatRequestBody;
 
@@ -46,15 +35,6 @@ export async function POST(request: Request) {
 
   try {
     const result = await callChatProvider(provider, messages, model ?? '');
-
-    // Only spend a credit on tiers that are actually credit-gated
-    // (Bootstrapper). Elite/Command are "higher limits" per the new pricing
-    // — see the null-ceiling note in auth.ts, this needs a real number
-    // before launch.
-    if (user.plan.creditsPerMonth !== null) {
-      await deductCredit(user.id);
-    }
-
     return Response.json({ text: result.text });
   } catch (err) {
     console.error('chat provider error', err);

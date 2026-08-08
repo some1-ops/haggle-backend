@@ -9,7 +9,7 @@ export async function callOpenAI(messages: { role: string; content: string }[], 
       authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: model || 'gpt-5.1',
+      model: model || 'gpt-4o',
       messages,
     }),
   });

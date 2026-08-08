@@ -2,7 +2,7 @@ export async function callGemini(messages: { role: string; content: string }[], 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured on backend');
 
-  const modelName = model || 'gemini-2.5-flash';
+  const modelName = model || 'gemini-2.0-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
   const contents = messages

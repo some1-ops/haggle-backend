@@ -11,6 +11,10 @@
  * in this repo.
  */
 
+import dodoProductMap from './dodo-product-map.generated.json';
+
+const dodoProducts = dodoProductMap as Record<string, string>;
+
 export type SubscriptionTier =
   | 'free'
   | 'elite'
@@ -115,7 +119,7 @@ export const PLANS: Record<string, Plan> = {
     billingPeriod: 'month',
     creditsPerMonth: null,
     channels: ['extension', 'desktop_overlay'],
-    dodoProductId: null,
+    dodoProductId: dodoProducts['elite'] ?? null,
     features: eliteFeatures,
   },
   elite_yearly: {
@@ -126,7 +130,7 @@ export const PLANS: Record<string, Plan> = {
     billingPeriod: 'year',
     creditsPerMonth: null,
     channels: ['extension', 'desktop_overlay'],
-    dodoProductId: null,
+    dodoProductId: dodoProducts['elite_yearly'] ?? null,
     features: eliteFeatures,
   },
   command: {
@@ -137,7 +141,7 @@ export const PLANS: Record<string, Plan> = {
     billingPeriod: 'month',
     creditsPerMonth: null,
     channels: ['extension', 'desktop_overlay'],
-    dodoProductId: null,
+    dodoProductId: dodoProducts['command'] ?? null,
     features: commandFeatures,
   },
   command_yearly: {
@@ -148,7 +152,7 @@ export const PLANS: Record<string, Plan> = {
     billingPeriod: 'year',
     creditsPerMonth: null,
     channels: ['extension', 'desktop_overlay'],
-    dodoProductId: null,
+    dodoProductId: dodoProducts['command_yearly'] ?? null,
     features: commandFeatures,
   },
 };
