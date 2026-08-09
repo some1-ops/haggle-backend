@@ -1,5 +1,5 @@
-export async function callAnthropic(messages: { role: string; content: string }[], model: string) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+export async function callAnthropic(messages: { role: string; content: string }[], model: string, customApiKey?: string) {
+  const apiKey = customApiKey || process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured on backend');
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {

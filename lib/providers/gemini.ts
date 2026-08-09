@@ -1,5 +1,5 @@
-export async function callGemini(messages: { role: string; content: string }[], model: string) {
-  const apiKey = process.env.GEMINI_API_KEY;
+export async function callGemini(messages: { role: string; content: string }[], model: string, customApiKey?: string) {
+  const apiKey = customApiKey || process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured on backend');
 
   const modelName = model || 'gemini-2.0-flash';

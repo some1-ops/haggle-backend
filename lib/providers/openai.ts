@@ -1,5 +1,5 @@
-export async function callOpenAI(messages: { role: string; content: string }[], model: string) {
-  const apiKey = process.env.OPENAI_API_KEY;
+export async function callOpenAI(messages: { role: string; content: string }[], model: string, customApiKey?: string) {
+  const apiKey = customApiKey || process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('OPENAI_API_KEY not configured on backend');
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {

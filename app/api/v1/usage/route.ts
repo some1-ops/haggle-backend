@@ -12,5 +12,7 @@ export async function GET(request: Request) {
     tierName: user.plan.name,
     availableCredits: user.availableCredits,
     creditsPerMonth: user.plan.creditsPerMonth, // null = not credit-gated at this tier
+    plan: user.plan,
+    features: user.plan.features,
   });
 }

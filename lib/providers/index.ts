@@ -4,8 +4,8 @@ import { callGemini } from './gemini';
 
 export type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
-async function callGroq(messages: ChatMessage[], model: string) {
-  const apiKey = process.env.GROQ_API_KEY;
+async function callGroq(messages: ChatMessage[], model: string, customApiKey?: string) {
+  const apiKey = customApiKey || process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error('GROQ_API_KEY not configured on backend');
 
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -30,17 +30,18 @@ async function callGroq(messages: ChatMessage[], model: string) {
 export async function callChatProvider(
   provider: string,
   messages: ChatMessage[],
-  model: string
+  model: string,
+  customApiKey?: string
 ): Promise<{ text: string; raw: unknown }> {
   switch (provider) {
     case 'anthropic':
-      return callAnthropic(messages, model);
+      return callAnthropic(messages, model, customApiKey);
     case 'openai':
-      return callOpenAI(messages, model);
+      return callOpenAI(messages, model, customApiKey);
     case 'gemini':
-      return callGemini(messages, model);
+      return callGemini(messages, model, customApiKey);
     case 'groq':
-      return callGroq(messages, model);
+      return callGroq(messages, model, customApiKey);
     default:
       throw new Error(`Unknown provider: ${provider}`);
   }
