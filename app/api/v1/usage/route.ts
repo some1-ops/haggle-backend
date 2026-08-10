@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   // into a flat string array of enabled feature keys — ['byok', 'exports', ...]
   // The desktop FeatureContext calls hasFeature('byok') against this array.
   // Boolean `true` features are included; string-value fields (undetectableTier) get their own key.
-  const featuresObj = user.plan.features as Record<string, unknown>;
+  const featuresObj = user.plan.features as unknown as Record<string, unknown>;
   const featureKeys: string[] = [];
   for (const [key, value] of Object.entries(featuresObj)) {
     if (value === true) {

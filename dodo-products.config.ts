@@ -12,7 +12,7 @@
  * script itself doesn't need to change.
  */
 
-export type AlgerisBrand = 'haggle' | 'algoboost' | 'artificial-university' | 'trustlink';
+export type AlgerisBrand = 'haggle' | 'algoboost' | 'artificial-university' | 'trustlink' | 'campwork';
 
 export type TaxCategory = 'digital_products' | 'saas' | 'services' | 'e_book' | 'edtech' | string;
 
