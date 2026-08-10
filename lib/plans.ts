@@ -106,7 +106,7 @@ export const PLANS: Record<string, Plan> = {
     tagline: 'Learn the ropes.',
     priceUsd: 0,
     billingPeriod: 'month',
-    creditsPerMonth: 3, // existing handle_new_user() trigger sets 2 — needs updating, see migration
+    creditsPerMonth: 3, // 3 negotiations/month shared across web + desktop (same Supabase counter)
     channels: ['extension'],
     dodoProductId: null,
     features: { ...baseFeaturesOff },
@@ -114,21 +114,21 @@ export const PLANS: Record<string, Plan> = {
   elite: {
     id: 'elite',
     name: 'Elite',
-    tagline: 'For people who negotiate to win.',
+    tagline: 'For people who negotiate to win. (Most Popular)',
     priceUsd: 25,
     billingPeriod: 'month',
-    creditsPerMonth: null,
+    creditsPerMonth: null, // unlimited — not credit-gated; rate-limited per-tier instead
     channels: ['extension', 'desktop_overlay'],
     dodoProductId: dodoProducts['elite'] ?? null,
     features: eliteFeatures,
   },
   elite_yearly: {
     id: 'elite_yearly',
-    name: 'Elite (Yearly)',
-    tagline: 'For people who negotiate to win.',
+    name: 'Elite (Annual)',
+    tagline: 'For people who negotiate to win. (Most Popular)',
     priceUsd: 240,
     billingPeriod: 'year',
-    creditsPerMonth: null,
+    creditsPerMonth: null, // unlimited — not credit-gated
     channels: ['extension', 'desktop_overlay'],
     dodoProductId: dodoProducts['elite_yearly'] ?? null,
     features: eliteFeatures,
