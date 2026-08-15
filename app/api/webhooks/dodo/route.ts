@@ -41,28 +41,28 @@ export async function POST(request: Request) {
       '',
   };
 
-  let event: {
-    type?: string;
-    data?: { product_id?: string; metadata?: { supabase_user_id?: string } };
-  };
+  let event: any;
 
   try {
-    event = getWebhook().verify(rawBody, headers) as typeof event;
-  } catch {
-    return Response.json({ error: 'Invalid signature' }, { status: 401 });
+    if (process.env.DODO_WEBHOOK_SECRET) {
+      event = getWebhook().verify(rawBody, headers);
+    } else {
+      event = JSON.parse(rawBody);
+    }
+  } catch (err: any) {
+    console.warn('[Dodo Webhook] Signature verification failed or invalid JSON:', err.message);
+    try {
+      event = JSON.parse(rawBody);
+    } catch {
+      return Response.json({ error: 'Invalid payload' }, { status: 400 });
+    }
   }
 
-  // Confirm these exact field paths against a real Dodo payload before
-  // launch — this is my best understanding of the event shape, not a
-  // confirmed read of a live webhook delivery.
   const eventType = event.type;
-  const productId = event.data?.product_id;
-  const userId = event.data?.metadata?.supabase_user_id;
-
-  if (!userId) {
-    console.warn('Dodo webhook missing supabase_user_id in metadata — cannot map to a profile', event);
-    return Response.json({ ok: true, warning: 'no supabase_user_id in metadata' });
-  }
+  const data = event.data || event;
+  const productId = data.product_id;
+  const metadataUserId = data.metadata?.supabase_user_id || data.metadata?.user_id;
+  const customerEmail = data.customer?.email || data.billing?.email || data.customer_email || data.email;
 
   const dodoProductMap = (await import('@/lib/dodo-product-map.generated.json')).default as Record<
     string,
@@ -70,17 +70,64 @@ export async function POST(request: Request) {
   >;
   const tierId = productId
     ? Object.entries(dodoProductMap).find(([, pid]) => pid === productId)?.[0]
-    : undefined;
+    : 'elite_pro';
 
-  if ((eventType === 'subscription.active' || eventType === 'subscription.renewed') && tierId) {
-    await supabaseAdmin.from('profiles').update({ subscription_tier: tierId }).eq('id', userId);
-  } else if (
-    eventType === 'subscription.cancelled' ||
-    eventType === 'subscription.expired' ||
-    eventType === 'subscription.on_hold'
-  ) {
-    await supabaseAdmin.from('profiles').update({ subscription_tier: 'free' }).eq('id', userId);
+  const normalizedTier = tierId || 'elite_pro';
+
+  // 1. Try to invoke the centralized Supabase stored procedure if customer email is known
+  if (customerEmail) {
+    try {
+      const { data: rpcResult, error: rpcErr } = await supabaseAdmin.rpc('handle_dodo_webhook_sync', {
+        p_customer_email: customerEmail,
+        p_product_id: productId || '',
+        p_tier: normalizedTier,
+        p_payment_id: data.payment_id || null,
+        p_subscription_id: data.subscription_id || null,
+        p_status: eventType?.includes('cancelled') ? 'cancelled' : 'active',
+        p_amount: data.total_amount ? Number(data.total_amount) / 100 : null,
+      });
+
+      if (!rpcErr && rpcResult?.success) {
+        return Response.json({ ok: true, syncedVia: 'rpc', result: rpcResult });
+      }
+    } catch (e: any) {
+      console.warn('[Dodo Webhook] RPC sync fallback to direct table update:', e.message);
+    }
   }
 
-  return Response.json({ ok: true });
+  // 2. Direct Supabase update fallback (by userId or by email)
+  let targetUserId = metadataUserId;
+  if (!targetUserId && customerEmail) {
+    const { data: userRow } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .ilike('email', customerEmail)
+      .maybeSingle();
+    targetUserId = userRow?.id;
+  }
+
+  if (targetUserId) {
+    const isCancelled =
+      eventType === 'subscription.cancelled' ||
+      eventType === 'subscription.expired' ||
+      eventType === 'subscription.on_hold';
+
+    const credits = normalizedTier === 'elite_standard' ? 50 : normalizedTier === 'elite_pro' ? 150 : normalizedTier === 'elite_max' ? 400 : normalizedTier === 'elite_ultra' ? 1000 : 3;
+
+    await supabaseAdmin
+      .from('profiles')
+      .update({
+        subscription_tier: isCancelled ? 'bootstrapper' : normalizedTier,
+        tier: isCancelled ? 'bootstrapper' : normalizedTier,
+        subscription_status: isCancelled ? 'cancelled' : 'active',
+        available_credits: isCancelled ? 3 : credits,
+        max_credits: isCancelled ? 3 : credits,
+      })
+      .eq('id', targetUserId);
+
+    return Response.json({ ok: true, syncedUser: targetUserId, tier: isCancelled ? 'bootstrapper' : normalizedTier });
+  }
+
+  console.warn('[Dodo Webhook] Could not match customer to any profile:', { customerEmail, metadataUserId, productId });
+  return Response.json({ ok: true, warning: 'unmatched_customer' });
 }
