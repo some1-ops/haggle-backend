@@ -106,7 +106,7 @@ export async function POST(request: Request) {
     targetUserId = userRow?.id;
   }
 
-  if (targetUserId) {
+    if (targetUserId) {
     const isCancelled =
       eventType === 'subscription.cancelled' ||
       eventType === 'subscription.expired' ||
@@ -124,6 +124,41 @@ export async function POST(request: Request) {
         max_credits: isCancelled ? 3 : credits,
       })
       .eq('id', targetUserId);
+
+    // Automatic Device License Issuance / Sync
+    try {
+      const subscriptionId = data.subscription_id || null;
+      if (isCancelled && subscriptionId) {
+        await supabaseAdmin
+          .from('licenses')
+          .update({ status: 'expired', updated_at: new Date().toISOString() })
+          .eq('subscription_id', subscriptionId);
+      } else if (!isCancelled && customerEmail) {
+        // Check if an active license already exists for this subscription or email
+        const { data: existingLic } = await supabaseAdmin
+          .from('licenses')
+          .select('id, license_key')
+          .or(`subscription_id.eq.${subscriptionId || 'none'},email.eq.${customerEmail.toLowerCase().trim()}`)
+          .eq('status', 'active')
+          .maybeSingle();
+
+        if (!existingLic) {
+          const { issueLicense } = await import('@/lib/keys');
+          await issueLicense({
+            userId: targetUserId,
+            email: customerEmail,
+            tier: normalizedTier.includes('command') ? 'command' : 'pro',
+            plan: normalizedTier,
+            maxDevices: normalizedTier.includes('command') ? 5 : 2,
+            paymentId: data.payment_id || null,
+            subscriptionId: subscriptionId,
+            metadata: { source: 'dodo_webhook', eventType },
+          });
+        }
+      }
+    } catch (licErr: any) {
+      console.warn('[Dodo Webhook] Auto license issuance non-blocking error:', licErr?.message);
+    }
 
     return Response.json({ ok: true, syncedUser: targetUserId, tier: isCancelled ? 'bootstrapper' : normalizedTier });
   }
