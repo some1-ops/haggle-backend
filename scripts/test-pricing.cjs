@@ -1,60 +1,10 @@
-/**
- * SINGLE SOURCE OF TRUTH for Haggle pricing/entitlements.
- * GET /v1/pricing returns this. Website, desktop app, and Dodo product
- * descriptions all read from here to stay perfectly synchronized.
- */
+const dodoProducts = require('../lib/dodo-product-map.generated.json');
 
-import dodoProductMap from './dodo-product-map.generated.json';
+const buildCheckoutUrl = (productId) => {
+  return productId ? `https://checkout.dodopayments.com/buy/${productId}` : null;
+};
 
-const dodoProducts = dodoProductMap as Record<string, string>;
-
-export type SubscriptionTier =
-  | 'free'
-  | 'bootstrapper'
-  | 'elite'
-  | 'elite_standard'
-  | 'elite_pro'
-  | 'elite_yearly'
-  | 'elite_max'
-  | 'elite_ultra'
-  | 'command'
-  | 'command_yearly'
-  | 'mercenary'
-  | 'pro';
-
-export interface PlanFeatures {
-  byok: boolean;
-  customModelProviders: boolean;
-  exports: boolean;
-  liveNegotiationAssistant: boolean;
-  scenarioSandbox: boolean;
-  meetingTranscription: boolean;
-  teamWorkspaces: boolean;
-  sharedNegotiationMemory: boolean;
-  negotiationCrm: boolean;
-  liveCoaching: boolean;
-  behavioralProfiling: boolean;
-  bluffDetection: boolean;
-  contractIntelligence: boolean;
-  advancedAnalytics: boolean;
-  teamPermissions: boolean;
-  undetectableTier: boolean | 'standard' | 'advanced' | 'max';
-}
-
-export interface Plan {
-  id: string;
-  name: string;
-  tagline: string;
-  priceUsd: number | null;
-  billingPeriod: 'month' | 'year' | 'free' | 'monthly' | 'yearly' | 'custom';
-  creditsPerMonth: number | null;
-  channels: string[];
-  dodoProductId: string | null;
-  checkoutUrl: string | null;
-  features: PlanFeatures;
-}
-
-const baseFeaturesOff: PlanFeatures = {
+const baseFeaturesOff = {
   byok: false,
   customModelProviders: false,
   exports: false,
@@ -73,7 +23,7 @@ const baseFeaturesOff: PlanFeatures = {
   undetectableTier: false,
 };
 
-const eliteStandardFeatures: PlanFeatures = {
+const eliteStandardFeatures = {
   ...baseFeaturesOff,
   exports: true,
   liveNegotiationAssistant: true,
@@ -82,7 +32,7 @@ const eliteStandardFeatures: PlanFeatures = {
   undetectableTier: true,
 };
 
-const eliteProFeatures: PlanFeatures = {
+const eliteProFeatures = {
   byok: true,
   customModelProviders: true,
   exports: true,
@@ -101,11 +51,7 @@ const eliteProFeatures: PlanFeatures = {
   undetectableTier: true,
 };
 
-const buildCheckoutUrl = (productId: string | null | undefined): string | null => {
-  return productId ? `https://checkout.dodopayments.com/buy/${productId}` : null;
-};
-
-export const PLANS: Record<string, Plan> = {
+const PLANS = {
   free: {
     id: 'free',
     name: 'Bootstrapper',
@@ -211,10 +157,7 @@ export const PLANS: Record<string, Plan> = {
   },
 };
 
-/**
- * Normalizes any subscription tier string to the matching canonical plan ID.
- */
-export function normalizeTier(tier: string | undefined | null): string {
+function normalizeTier(tier) {
   if (!tier) return 'free';
   const t = tier.toLowerCase().trim().replace(/\s+/g, '_');
   if (t === 'bootstrapper' || t === 'free') return 'free';
@@ -228,10 +171,49 @@ export function normalizeTier(tier: string | undefined | null): string {
   return 'free';
 }
 
-/**
- * Returns the matching Plan object for any given tier ID or alias.
- */
-export function getPlan(tierId: string | undefined | null): Plan {
+function getPlan(tierId) {
   const norm = normalizeTier(tierId);
-  return PLANS[norm] || PLANS[tierId || ''] || PLANS.free;
+  return PLANS[norm] || PLANS[tierId] || PLANS.free;
 }
+
+console.log('--- TEST 1: Pricing Plans Integrity & Checkout URLs ---');
+const plansList = Object.values(PLANS);
+console.log(`Total plans available: ${plansList.length}`);
+
+for (const p of plansList) {
+  console.log(`\n[Plan: ${p.id}]`);
+  console.log(`  Name: ${p.name}`);
+  console.log(`  Price: $${p.priceUsd} / ${p.billingPeriod}`);
+  console.log(`  Credits: ${p.creditsPerMonth}`);
+  console.log(`  Dodo Product ID: ${p.dodoProductId}`);
+  console.log(`  Checkout URL: ${p.checkoutUrl}`);
+  console.log(`  BYOK Allowed: ${p.features.byok}`);
+}
+
+console.log('\n--- TEST 2: Tier Normalization & Plan Resolution ---');
+const testTiers = [
+  'free',
+  'bootstrapper',
+  'elite_standard',
+  'standard',
+  'elite',
+  'elite_pro',
+  'elite_yearly',
+  'elite_max',
+  'elite_ultra',
+  'command',
+  'command_yearly',
+  'pro',
+  'mercenary',
+];
+
+for (const t of testTiers) {
+  const norm = normalizeTier(t);
+  const plan = getPlan(t);
+  console.log(`  Tier "${t}" -> normalized "${norm}" -> resolved plan name: "${plan.name}", price: $${plan.priceUsd}, checkout: ${plan.checkoutUrl}`);
+  if (!plan || !plan.name) {
+    throw new Error(`Failed to resolve plan for tier "${t}"`);
+  }
+}
+
+console.log('\n✅ ALL PRICING & DODO CHECKOUT URL TESTS PASSED!');

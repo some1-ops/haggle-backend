@@ -2,14 +2,7 @@
  * Desired-state config for every Dodo product Algeris sells, across every
  * brand. `npm run sync:dodo` reconciles Dodo's actual product catalog
  * against this file. internalId must exactly match the subscription_tier
- * enum values in lib/plans.ts / the Supabase profiles table — the sync
- * script stamps it into each product's metadata, which is how it finds
- * "this Dodo product IS Haggle Elite Monthly" on every future run without
- * you ever touching the dashboard.
- *
- * Adding a new Algeris brand later (Algoboost, Artificial University,
- * TrustLink) means adding entries here with a new `brand` value — the sync
- * script itself doesn't need to change.
+ * enum values in lib/plans.ts / the Supabase profiles table.
  */
 
 export type AlgerisBrand = 'haggle' | 'algoboost' | 'artificial-university' | 'trustlink' | 'campwork';
@@ -28,38 +21,65 @@ export interface DodoProductConfig {
 
 export const DODO_PRODUCTS: DodoProductConfig[] = [
   {
+    internalId: 'elite_standard',
+    brand: 'haggle',
+    name: 'Elite Standard',
+    description: 'Managed transcription & AI on Haggle servers.',
+    priceUsd: 8,
+    interval: 'Month',
+    taxCategory: 'saas',
+  },
+  {
     internalId: 'elite',
     brand: 'haggle',
-    name: 'Haggle Elite',
-    description: 'For people who negotiate to win.',
-    priceUsd: 25,
+    name: 'Elite Pro',
+    description: 'Daily professional usage + full Haggle Pro app license + Unlimited BYOK.',
+    priceUsd: 15,
     interval: 'Month',
     taxCategory: 'saas',
   },
   {
     internalId: 'elite_yearly',
     brand: 'haggle',
-    name: 'Haggle Elite (Yearly)',
-    description: 'For people who negotiate to win.',
-    priceUsd: 240,
+    name: 'Elite Pro (Annual)',
+    description: 'Daily professional usage + full Haggle Pro app license + Unlimited BYOK.',
+    priceUsd: 150,
     interval: 'Year',
+    taxCategory: 'saas',
+  },
+  {
+    internalId: 'elite_max',
+    brand: 'haggle',
+    name: 'Elite Max',
+    description: 'Heavy AI usage + Pro app license + Unlimited BYOK.',
+    priceUsd: 25,
+    interval: 'Month',
+    taxCategory: 'saas',
+  },
+  {
+    internalId: 'elite_ultra',
+    brand: 'haggle',
+    name: 'Elite Ultra',
+    description: 'Power user AI + Pro app license + Unlimited BYOK.',
+    priceUsd: 35,
+    interval: 'Month',
     taxCategory: 'saas',
   },
   {
     internalId: 'command',
     brand: 'haggle',
-    name: 'Haggle Command',
-    description: 'For people whose negotiations move serious money.',
-    priceUsd: 79,
+    name: 'Haggle Pro (Command)',
+    description: 'Pure BYOK standalone license. Bring your own keys & local models.',
+    priceUsd: 15,
     interval: 'Month',
     taxCategory: 'saas',
   },
   {
     internalId: 'command_yearly',
     brand: 'haggle',
-    name: 'Haggle Command (Yearly)',
-    description: 'For people whose negotiations move serious money.',
-    priceUsd: 790,
+    name: 'Haggle Pro (Annual)',
+    description: 'Pure BYOK standalone license. Bring your own keys & local models.',
+    priceUsd: 150,
     interval: 'Year',
     taxCategory: 'saas',
   },

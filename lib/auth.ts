@@ -16,12 +16,20 @@ import crypto from 'crypto';
  * 1. Supabase User JWT session token (`Bearer eyJ...`)
  * 2. Algeris Managed API Key (`Bearer hgl_live_...` or `Bearer alg_...`)
  */
-export async function resolveUser(request: Request): Promise<ResolvedUser | null> {
+export async function resolveUser(request: Request, fallbackToken?: string | null): Promise<ResolvedUser | null> {
   const authHeader = request.headers.get('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+  let token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+
+  if (!token) {
+    token = request.headers.get('x-haggle-key')?.trim() ||
+      request.headers.get('x-trial-token')?.trim() ||
+      fallbackToken?.trim() ||
+      null;
+  }
+
   if (!token) return null;
 
-  // 1. Managed API Key Lookup (hgl_live_...)
+  // 1. Managed API Key Lookup (hgl_live_... or alg_...)
   if (token.startsWith('hgl_live_') || token.startsWith('alg_')) {
     try {
       const keyHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -62,30 +70,54 @@ export async function resolveUser(request: Request): Promise<ResolvedUser | null
     }
   }
 
-  // 2. Supabase Auth Session Token
-  const { data: userResult, error: userErr } = await supabaseAdmin.auth.getUser(token);
-  if (userErr || !userResult?.user) return null;
+  // 2. Standalone License Lookup (HGL-PRO-..., HAG-PRO-..., etc.)
+  if (token.startsWith('HGL-') || token.startsWith('HAG-PRO-') || token.startsWith('HAGGLE-PRO-') || token.startsWith('DODO-PRO-')) {
+    try {
+      const { data: licenseRow, error: licErr } = await supabaseAdmin
+        .from('licenses')
+        .select('*')
+        .eq('license_key', token)
+        .eq('status', 'active')
+        .maybeSingle();
 
-  const { data: profile, error: profileErr } = await supabaseAdmin
-    .from('profiles')
-    .select('subscription_tier, available_credits')
-    .eq('id', userResult.user.id)
-    .single();
-
-  if (profileErr || !profile) {
-    console.error('resolveUser: no profile row for authenticated user', userResult.user.id, profileErr);
-    return null;
+      if (!licErr && licenseRow) {
+        const tierId = licenseRow.tier || 'command';
+        const plan = getPlan(tierId) ?? getPlan('command')!;
+        return {
+          id: licenseRow.user_id || `lic_${licenseRow.id}`,
+          email: licenseRow.email,
+          tierId,
+          plan,
+          availableCredits: 9999, // Unmetered / BYOK standalone license
+        };
+      }
+    } catch (e: any) {
+      console.warn('resolveUser: license key lookup error', e.message);
+    }
   }
 
-  const plan = getPlan(profile.subscription_tier) ?? getPlan('free')!;
+  // 3. Supabase Auth Session Token
+  const { data: userResult, error: userErr } = await supabaseAdmin.auth.getUser(token);
+  if (!userErr && userResult?.user) {
+    const { data: profile, error: profileErr } = await supabaseAdmin
+      .from('profiles')
+      .select('subscription_tier, available_credits')
+      .eq('id', userResult.user.id)
+      .single();
 
-  return {
-    id: userResult.user.id,
-    email: userResult.user.email,
-    tierId: profile.subscription_tier,
-    plan,
-    availableCredits: profile.available_credits,
-  };
+    if (!profileErr && profile) {
+      const plan = getPlan(profile.subscription_tier) ?? getPlan('free')!;
+      return {
+        id: userResult.user.id,
+        email: userResult.user.email,
+        tierId: profile.subscription_tier,
+        plan,
+        availableCredits: profile.available_credits,
+      };
+    }
+  }
+
+  return null;
 }
 
 /**

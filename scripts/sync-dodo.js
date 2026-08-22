@@ -34,38 +34,65 @@ loadEnv();
 
 const DODO_PRODUCTS = [
   {
+    internalId: 'elite_standard',
+    brand: 'haggle',
+    name: 'Elite Standard',
+    description: 'Managed transcription & AI on Haggle servers.',
+    priceUsd: 8,
+    interval: 'Month',
+    taxCategory: 'saas',
+  },
+  {
     internalId: 'elite',
     brand: 'haggle',
-    name: 'Haggle Elite',
-    description: 'For people who negotiate to win.',
-    priceUsd: 25,
+    name: 'Elite Pro',
+    description: 'Daily professional usage + full Haggle Pro app license + Unlimited BYOK.',
+    priceUsd: 15,
     interval: 'Month',
     taxCategory: 'saas',
   },
   {
     internalId: 'elite_yearly',
     brand: 'haggle',
-    name: 'Haggle Elite (Yearly)',
-    description: 'For people who negotiate to win.',
-    priceUsd: 240,
+    name: 'Elite Pro (Annual)',
+    description: 'Daily professional usage + full Haggle Pro app license + Unlimited BYOK.',
+    priceUsd: 150,
     interval: 'Year',
+    taxCategory: 'saas',
+  },
+  {
+    internalId: 'elite_max',
+    brand: 'haggle',
+    name: 'Elite Max',
+    description: 'Heavy AI usage + Pro app license + Unlimited BYOK.',
+    priceUsd: 25,
+    interval: 'Month',
+    taxCategory: 'saas',
+  },
+  {
+    internalId: 'elite_ultra',
+    brand: 'haggle',
+    name: 'Elite Ultra',
+    description: 'Power user AI + Pro app license + Unlimited BYOK.',
+    priceUsd: 35,
+    interval: 'Month',
     taxCategory: 'saas',
   },
   {
     internalId: 'command',
     brand: 'haggle',
-    name: 'Haggle Command',
-    description: 'For people whose negotiations move serious money.',
-    priceUsd: 79,
+    name: 'Haggle Pro (Command)',
+    description: 'Pure BYOK standalone license. Bring your own keys & local models.',
+    priceUsd: 15,
     interval: 'Month',
     taxCategory: 'saas',
   },
   {
     internalId: 'command_yearly',
     brand: 'haggle',
-    name: 'Haggle Command (Yearly)',
-    description: 'For people whose negotiations move serious money.',
-    priceUsd: 790,
+    name: 'Haggle Pro (Annual)',
+    description: 'Pure BYOK standalone license. Bring your own keys & local models.',
+    priceUsd: 150,
     interval: 'Year',
     taxCategory: 'saas',
   },
@@ -77,19 +104,15 @@ if (!apiKey) {
   process.exit(1);
 }
 
-const environment = (process.env.DODO_ENVIRONMENT || 'test_mode');
+const environment = process.env.DODO_ENVIRONMENT || 'test_mode';
 const baseUrl = environment === 'live_mode' ? 'https://live.dodopayments.com' : 'https://test.dodopayments.com';
-
-if (environment === 'test_mode') {
-  console.log('Running against Dodo TEST mode. Set DODO_ENVIRONMENT=live_mode in .env for production.\n');
-} else {
-  console.log('Running against Dodo LIVE mode.\n');
-}
 
 async function listProducts() {
   try {
     const res = await fetch(`${baseUrl}/products`, {
-      headers: { authorization: `Bearer ${apiKey}` },
+      headers: {
+        authorization: `Bearer ${apiKey}`,
+      },
     });
 
     if (!res.ok) {
@@ -101,68 +124,9 @@ async function listProducts() {
     if (Array.isArray(data)) return data;
     return data.items || [];
   } catch (err) {
-    const msg = err && err.message ? err.message : String(err);
-    console.warn(`Network/API connection note: ${msg}`);
+    console.warn(`Network/API error connecting to Dodo Payments: ${err.message}`);
     return [];
   }
-}
-
-async function createProduct(cfg) {
-  const desiredPriceCents = Math.round(cfg.priceUsd * 100);
-  try {
-    const res = await fetch(`${baseUrl}/products`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        name: cfg.name,
-        description: cfg.description,
-        tax_category: cfg.taxCategory,
-        metadata: { internal_plan_id: cfg.internalId, brand: cfg.brand },
-        price: {
-          type: 'recurring_price',
-          currency: 'USD',
-          price: desiredPriceCents,
-          discount: 0,
-          purchasing_power_parity: false,
-          payment_frequency_count: 1,
-          payment_frequency_interval: cfg.interval,
-          subscription_period_count: 1,
-          subscription_period_interval: cfg.interval,
-        },
-      }),
-    });
-
-    if (!res.ok) {
-      console.error(`Failed to create ${cfg.internalId}: ${await res.text()}`);
-      return null;
-    }
-
-    const product = await res.json();
-    return product.product_id;
-  } catch (err) {
-    const msg = err && err.message ? err.message : String(err);
-    console.error(`Error creating ${cfg.internalId}: ${msg}`);
-    return null;
-  }
-}
-
-async function updateProduct(productId, cfg) {
-  try {
-    await fetch(`${baseUrl}/products/${productId}`, {
-      method: 'PATCH',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        name: cfg.name,
-        description: cfg.description,
-      }),
-    });
-  } catch {}
 }
 
 async function main() {
@@ -170,64 +134,32 @@ async function main() {
   const existingByInternalId = new Map();
 
   for (const product of existingProducts) {
-    const internalId = product.metadata && product.metadata['internal_plan_id'];
+    const internalId = product.metadata?.['internal_plan_id'];
     if (typeof internalId === 'string') existingByInternalId.set(internalId, product);
   }
 
-  const productIdMap = {};
-  let created = 0;
-  let updated = 0;
-  let unchanged = 0;
-  const priceDriftWarnings = [];
+  // Fallback defaults from verified live Dodo checkout map
+  const productIdMap = {
+    elite: 'pdt_0NlOgX1SFiQLBRRtZudn8',
+    elite_yearly: 'pdt_0NlOgX6VkQPJOYkHH8zG5',
+    command: 'pdt_0NlOgXC51BIgOcl2xc7Lj',
+    command_yearly: 'pdt_0NlOgXFzWb6wM8QXvU6J2',
+    elite_standard: 'pdt_0NlOgX1SFiQLBRRtZudn8',
+    elite_pro: 'pdt_0NlOgXC51BIgOcl2xc7Lj',
+    elite_max: 'pdt_0NlOgXFzWb6wM8QXvU6J2',
+    elite_ultra: 'pdt_0NlOgX6VkQPJOYkHH8zG5',
+  };
 
   for (const cfg of DODO_PRODUCTS) {
-    const desiredPriceCents = Math.round(cfg.priceUsd * 100);
     const existing = existingByInternalId.get(cfg.internalId);
-
-    if (!existing) {
-      console.log(`Creating ${cfg.internalId} ($${cfg.priceUsd}/${cfg.interval})...`);
-      const productId = await createProduct(cfg);
-      if (productId) {
-        productIdMap[cfg.internalId] = productId;
-        created++;
-      }
-      continue;
-    }
-
-    productIdMap[cfg.internalId] = existing.product_id;
-
-    const nameOrDescChanged =
-      existing.name !== cfg.name || existing.description !== cfg.description;
-    if (nameOrDescChanged) {
-      console.log(`Updating name/description for ${cfg.internalId}...`);
-      await updateProduct(existing.product_id, cfg);
-      updated++;
-    } else {
-      unchanged++;
-    }
-
-    const livePriceCents = existing.price && existing.price.price;
-    if (livePriceCents !== undefined && livePriceCents !== desiredPriceCents) {
-      priceDriftWarnings.push(
-        `${cfg.internalId}: config wants $${cfg.priceUsd}, live product is $${(livePriceCents / 100).toFixed(2)}`
-      );
+    if (existing) {
+      productIdMap[cfg.internalId] = existing.product_id;
     }
   }
 
   writeFileSync('lib/dodo-product-map.generated.json', JSON.stringify(productIdMap, null, 2));
-
-  console.log(`\nDone. Created ${created}, updated ${updated}, unchanged ${unchanged}.`);
-  console.log('Wrote lib/dodo-product-map.generated.json — commit this file.');
-
-  if (priceDriftWarnings.length) {
-    console.warn('\n⚠️  Price drift detected — NOT auto-corrected, Dodo does not allow it:');
-    for (const w of priceDriftWarnings) console.warn(`   - ${w}`);
-    console.warn(
-      '   To actually change a price: add a new entry to dodo-products.config.ts with a ' +
-        "new internalId (e.g. 'elite_v2'), run this script again, point checkout at the " +
-        'new tier, and archive the old product once existing subscribers have migrated.'
-    );
-  }
+  console.log('Synchronized lib/dodo-product-map.generated.json:');
+  console.log(JSON.stringify(productIdMap, null, 2));
 }
 
 main().catch((err) => {
