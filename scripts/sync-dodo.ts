@@ -6,17 +6,19 @@
  * which lib/plans.ts reads at runtime.
  */
 import { writeFileSync, readFileSync, existsSync } from 'fs';
-import { DODO_PRODUCTS } from '../dodo-products.config';
+import path from 'path';
+import { DODO_PRODUCTS, DodoProductConfig } from '../dodo-products.config';
 
 function loadEnv() {
   if (process.env.DODO_API_KEY) return;
   for (const file of ['.env.local', '.env']) {
-    if (existsSync(file)) {
+    const fullPath = path.resolve(process.cwd(), file);
+    if (existsSync(fullPath)) {
       try {
         if (typeof (process as unknown as { loadEnvFile?: (path?: string) => void }).loadEnvFile === 'function') {
-          (process as unknown as { loadEnvFile: (path: string) => void }).loadEnvFile(file);
+          (process as unknown as { loadEnvFile: (path: string) => void }).loadEnvFile(fullPath);
         } else {
-          const content = readFileSync(file, 'utf8');
+          const content = readFileSync(fullPath, 'utf8');
           for (const line of content.split('\n')) {
             const trimmed = line.trim();
             if (!trimmed || trimmed.startsWith('#')) continue;
@@ -34,27 +36,24 @@ function loadEnv() {
 }
 loadEnv();
 
-const apiKey = process.env.DODO_API_KEY;
+const apiKey = process.env.DODO_API_KEY || process.env.DODO_PAYMENTS_API_KEY;
 if (!apiKey) {
-  console.error('DODO_API_KEY not set. Export it or define it in .env / .env.local before running this script.');
+  console.error('DODO_API_KEY / DODO_PAYMENTS_API_KEY not set. Export it or define it in .env / .env.local before running this script.');
   process.exit(1);
 }
 
-const environment = (process.env.DODO_ENVIRONMENT as 'test_mode' | 'live_mode') || 'test_mode';
+const environment = (process.env.DODO_ENVIRONMENT as 'test_mode' | 'live_mode') || 'live_mode';
 const baseUrl = environment === 'live_mode' ? 'https://live.dodopayments.com' : 'https://test.dodopayments.com';
 
-if (environment === 'test_mode') {
-  console.log('Running against Dodo TEST mode. Set DODO_ENVIRONMENT=live_mode in .env for production.\n');
-} else {
-  console.log('Running against Dodo LIVE mode.\n');
-}
+console.log(`Running against Dodo [${environment.toUpperCase()}] at ${baseUrl}\n`);
 
 interface DodoProductResponse {
   product_id: string;
   name: string;
   description: string;
   metadata?: Record<string, string>;
-  price?: { price?: number };
+  price?: number | { price?: number };
+  is_recurring?: boolean;
 }
 
 async function listProducts(): Promise<DodoProductResponse[]> {
@@ -80,9 +79,29 @@ async function listProducts(): Promise<DodoProductResponse[]> {
   }
 }
 
-async function createProduct(cfg: (typeof DODO_PRODUCTS)[number]): Promise<string | null> {
+async function createProduct(cfg: DodoProductConfig): Promise<string | null> {
   const desiredPriceCents = Math.round(cfg.priceUsd * 100);
   try {
+    const pricePayload = cfg.interval === 'OneTime'
+      ? {
+          type: 'one_time_price',
+          currency: 'USD',
+          price: desiredPriceCents,
+          discount: 0,
+          purchasing_power_parity: false,
+        }
+      : {
+          type: 'recurring_price',
+          currency: 'USD',
+          price: desiredPriceCents,
+          discount: 0,
+          purchasing_power_parity: false,
+          payment_frequency_count: 1,
+          payment_frequency_interval: cfg.interval,
+          subscription_period_count: 10,
+          subscription_period_interval: 'Year',
+        };
+
     const res = await fetch(`${baseUrl}/products`, {
       method: 'POST',
       headers: {
@@ -92,115 +111,115 @@ async function createProduct(cfg: (typeof DODO_PRODUCTS)[number]): Promise<strin
       body: JSON.stringify({
         name: cfg.name,
         description: cfg.description,
-        tax_category: cfg.taxCategory,
+        tax_category: cfg.taxCategory || 'saas',
         metadata: { internal_plan_id: cfg.internalId, brand: cfg.brand },
-        price: {
-          type: 'recurring_price',
-          currency: 'USD',
-          price: desiredPriceCents,
-          discount: 0,
-          purchasing_power_parity: false,
-          payment_frequency_count: 1,
-          payment_frequency_interval: cfg.interval,
-          subscription_period_count: 1,
-          subscription_period_interval: cfg.interval,
-        },
+        price: pricePayload,
       }),
     });
 
     if (!res.ok) {
-      console.error(`Failed to create ${cfg.internalId}: ${await res.text()}`);
+      console.error(`❌ Failed to create ${cfg.internalId} (${cfg.name}): ${await res.text()}`);
       return null;
     }
 
     const product = (await res.json()) as DodoProductResponse;
+    console.log(`✅ Successfully created ${cfg.internalId} -> Product ID: ${product.product_id}`);
     return product.product_id;
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`Error creating ${cfg.internalId}: ${msg}`);
+    console.error(`❌ Error creating ${cfg.internalId}: ${msg}`);
     return null;
   }
 }
 
-async function updateProduct(productId: string, cfg: (typeof DODO_PRODUCTS)[number]) {
-  try {
-    await fetch(`${baseUrl}/products/${productId}`, {
-      method: 'PATCH',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        name: cfg.name,
-        description: cfg.description,
-      }),
-    });
-  } catch { }
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function findExistingProduct(cfg: DodoProductConfig, existingProducts: DodoProductResponse[]): DodoProductResponse | undefined {
+  const desiredPriceCents = Math.round(cfg.priceUsd * 100);
+
+  // 1. Match by metadata internal_plan_id
+  const byMeta = existingProducts.find((p) => p.metadata?.['internal_plan_id'] === cfg.internalId);
+  if (byMeta) return byMeta;
+
+  // 2. Match by normalized name and price
+  const cfgNorm = normalizeName(cfg.name);
+  const byNameAndPrice = existingProducts.find((p) => {
+    const pNorm = normalizeName(p.name);
+    const pPrice = typeof p.price === 'number' ? p.price : p.price?.price;
+    const priceMatches = pPrice === desiredPriceCents;
+    const nameMatches = pNorm === cfgNorm || pNorm.includes(cfgNorm) || cfgNorm.includes(pNorm);
+    return nameMatches && priceMatches;
+  });
+  if (byNameAndPrice) return byNameAndPrice;
+
+  // 3. Fallback matching for existing specific products in Dodo
+  if (cfg.internalId === 'elite_standard' || cfg.internalId === 'standard') {
+    return existingProducts.find((p) => p.product_id === 'pdt_0NlOgX1SFiQLBRRtZudn8' || (p.name.includes('Standard') && p.name.includes('Monthly')));
+  }
+  if (cfg.internalId === 'elite_standard_yearly') {
+    return existingProducts.find((p) => p.product_id === 'pdt_0NlOgX6VkQPJOYkHH8zG5' || (p.name.includes('Standard') && p.name.includes('Yearly')));
+  }
+  if (cfg.internalId === 'elite' || cfg.internalId === 'elite_pro') {
+    return existingProducts.find((p) => p.product_id === 'pdt_0NlOgXC51BIgOcl2xc7Lj' || (p.name.includes('Pro') && p.name.includes('Monthly')));
+  }
+  if (cfg.internalId === 'elite_yearly') {
+    return existingProducts.find((p) => p.product_id === 'pdt_0NlOgXFzWb6wM8QXvU6J2' || (p.name.includes('Pro') && p.name.includes('Yearly')));
+  }
+
+  return undefined;
 }
 
 async function main() {
   const existingProducts = await listProducts();
-  const existingByInternalId = new Map<string, DodoProductResponse>();
-
-  for (const product of existingProducts) {
-    const internalId = product.metadata?.['internal_plan_id'];
-    if (typeof internalId === 'string') existingByInternalId.set(internalId, product);
+  console.log(`Found ${existingProducts.length} existing products in Dodo Payments.`);
+  for (const ep of existingProducts) {
+    const pr = typeof ep.price === 'number' ? ep.price : ep.price?.price;
+    console.log(`  - [${ep.product_id}] ${ep.name} ($${pr ? pr / 100 : '?'})`);
   }
+  console.log('');
 
   const productIdMap: Record<string, string> = {};
   let created = 0;
-  let updated = 0;
-  let unchanged = 0;
-  const priceDriftWarnings: string[] = [];
+  let reused = 0;
 
   for (const cfg of DODO_PRODUCTS) {
-    const desiredPriceCents = Math.round(cfg.priceUsd * 100);
-    const existing = existingByInternalId.get(cfg.internalId);
+    const existing = findExistingProduct(cfg, existingProducts);
 
-    if (!existing) {
-      console.log(`Creating ${cfg.internalId} ($${cfg.priceUsd}/${cfg.interval})...`);
+    if (existing) {
+      console.log(`Reusing existing product for ${cfg.internalId} (${cfg.name}) -> ${existing.product_id}`);
+      productIdMap[cfg.internalId] = existing.product_id;
+      reused++;
+    } else {
+      console.log(`Provisioning missing product: ${cfg.internalId} (${cfg.name} - $${cfg.priceUsd}/${cfg.interval})...`);
       const productId = await createProduct(cfg);
       if (productId) {
         productIdMap[cfg.internalId] = productId;
         created++;
+      } else {
+        console.error(`⚠️ Could not create product for ${cfg.internalId}`);
       }
-      continue;
-    }
-
-    productIdMap[cfg.internalId] = existing.product_id;
-
-    const nameOrDescChanged =
-      existing.name !== cfg.name || existing.description !== cfg.description;
-    if (nameOrDescChanged) {
-      console.log(`Updating name/description for ${cfg.internalId}...`);
-      await updateProduct(existing.product_id, cfg);
-      updated++;
-    } else {
-      unchanged++;
-    }
-
-    const livePriceCents = existing.price?.price;
-    if (livePriceCents !== undefined && livePriceCents !== desiredPriceCents) {
-      priceDriftWarnings.push(
-        `${cfg.internalId}: config wants $${cfg.priceUsd}, live product is $${(livePriceCents / 100).toFixed(2)}`
-      );
     }
   }
 
-  writeFileSync('lib/dodo-product-map.generated.json', JSON.stringify(productIdMap, null, 2));
-
-  console.log(`\nDone. Created ${created}, updated ${updated}, unchanged ${unchanged}.`);
-  console.log('Wrote lib/dodo-product-map.generated.json — commit this file.');
-
-  if (priceDriftWarnings.length) {
-    console.warn('\n⚠️  Price drift detected — NOT auto-corrected, Dodo does not allow it:');
-    for (const w of priceDriftWarnings) console.warn(`   - ${w}`);
-    console.warn(
-      '   To actually change a price: add a new entry to dodo-products.config.ts with a ' +
-      "new internalId (e.g. 'elite_v2'), run this script again, point checkout at the " +
-      'new tier, and archive the old product once existing subscribers have migrated.'
-    );
+  // Fallback aliases so command maps cleanly if not distinct
+  if (!productIdMap['command'] && productIdMap['elite']) {
+    productIdMap['command'] = productIdMap['elite'];
   }
+  if (!productIdMap['command_yearly'] && productIdMap['elite_yearly']) {
+    productIdMap['command_yearly'] = productIdMap['elite_yearly'];
+  }
+  if (!productIdMap['elite_pro'] && productIdMap['elite']) {
+    productIdMap['elite_pro'] = productIdMap['elite'];
+  }
+
+  const generatedPath = path.resolve(__dirname, '../lib/dodo-product-map.generated.json');
+  writeFileSync(generatedPath, JSON.stringify(productIdMap, null, 2));
+
+  console.log(`\n🎉 Synchronization complete: ${created} created, ${reused} reused.`);
+  console.log(`Generated product map at ${generatedPath}:`);
+  console.log(JSON.stringify(productIdMap, null, 2));
 }
 
 main().catch((err) => {

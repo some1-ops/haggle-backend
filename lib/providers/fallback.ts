@@ -88,7 +88,7 @@ async function callGroqDirect(
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
-          model: model || 'llama-3.3-70b-versatile',
+          model: model || 'groq/compound',
           messages,
           temperature: options?.temperature ?? 0.7,
           max_tokens: options?.maxTokens ?? 1024,
@@ -169,19 +169,19 @@ export function buildFallbackLadder(options: FallbackChatOptions): FallbackCandi
     if (!normModel) {
       switch (normProvider) {
         case 'groq':
-          normModel = 'llama-3.3-70b-versatile';
+          normModel = 'groq/compound';
           break;
         case 'huggingface':
-          normModel = HUGGINGFACE_MODELS.LLAMA_3_2_3B;
+          normModel = HUGGINGFACE_MODELS.LLAMA_3_3_70B;
           break;
         case 'gemini':
-          normModel = 'gemini-2.0-flash';
+          normModel = 'gemini-3.6-flash';
           break;
         case 'openai':
-          normModel = fastMode ? 'gpt-4o-mini' : 'gpt-4o';
+          normModel = fastMode ? 'gpt-4o-mini' : 'gpt-5.4';
           break;
         case 'anthropic':
-          normModel = 'claude-3-5-sonnet-latest';
+          normModel = 'claude-sonnet-4-6';
           break;
       }
     } else if (normProvider === 'huggingface') {
@@ -195,12 +195,12 @@ export function buildFallbackLadder(options: FallbackChatOptions): FallbackCandi
   if (fastMode) {
     // Fast & Lightweight Ladder (Ultra-fast, low latency)
     const fastLadder: FallbackCandidate[] = [
-      { provider: 'groq', model: 'llama-3.3-70b-versatile', label: 'Fast Path 1 (Groq Llama 3.3)' },
-      { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_2_3B, label: 'Fast Path 2 (HF Llama 3.2 3B)' },
-      { provider: 'gemini', model: 'gemini-2.0-flash', label: 'Fast Path 3 (Gemini 2.0 Flash)' },
-      { provider: 'huggingface', model: HUGGINGFACE_MODELS.QWEN_2_5_7B, label: 'Fast Path 4 (HF Qwen 2.5 7B)' },
-      { provider: 'openai', model: 'gpt-4o-mini', label: 'Fast Path 5 (OpenAI 4o-mini)' },
-      { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_2_1B, label: 'Fast Path 6 (HF Llama 3.2 1B)' },
+      { provider: 'groq', model: 'groq/compound', label: 'Fast Path 1 (Groq Compound)' },
+      { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_1_8B, label: 'Fast Path 2 (HF Llama 3.1 8B)' },
+      { provider: 'groq', model: 'openai/gpt-oss-120b', label: 'Fast Path 3 (Groq GPT-OSS 120B)' },
+      { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_3_70B, label: 'Fast Path 4 (HF Llama 3.3 70B)' },
+      { provider: 'gemini', model: 'gemini-3.6-flash', label: 'Fast Path 5 (Gemini 3.6 Flash)' },
+      { provider: 'openai', model: 'gpt-4o-mini', label: 'Fast Path 6 (OpenAI 4o-mini)' },
     ];
 
     for (const c of fastLadder) {
@@ -215,11 +215,11 @@ export function buildFallbackLadder(options: FallbackChatOptions): FallbackCandi
     if (primary === 'huggingface' || primary === 'hf') {
       // Hugging Face primary fallbacks
       const hfFallbacks: FallbackCandidate[] = [
-        { provider: 'huggingface', model: HUGGINGFACE_MODELS.QWEN_2_5_7B, label: 'HF Fallback (Qwen 2.5 7B)' },
-        { provider: 'groq', model: 'llama-3.3-70b-versatile', label: 'Fallback 1 (Groq Llama 3.3)' },
-        { provider: 'gemini', model: 'gemini-2.0-flash', label: 'Fallback 2 (Gemini 2.0 Flash)' },
-        { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_1_8B, label: 'Fallback 3 (HF Llama 3.1 8B)' },
-        { provider: 'openai', model: 'gpt-4o-mini', label: 'Fallback 4 (OpenAI 4o-mini)' },
+        { provider: 'groq', model: 'groq/compound', label: 'Fallback 1 (Groq Compound)' },
+        { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_1_8B, label: 'Fallback 2 (HF Llama 3.1 8B)' },
+        { provider: 'huggingface', model: HUGGINGFACE_MODELS.QWEN_2_5_72B, label: 'Fallback 3 (HF Qwen 2.5 72B)' },
+        { provider: 'gemini', model: 'gemini-3.6-flash', label: 'Fallback 4 (Gemini 3.6 Flash)' },
+        { provider: 'openai', model: 'gpt-5.4', label: 'Fallback 5 (OpenAI GPT-5.4)' },
       ];
       for (const c of hfFallbacks) {
         if (!candidates.some((existing) => existing.provider === c.provider && existing.model === c.model)) {
@@ -228,10 +228,10 @@ export function buildFallbackLadder(options: FallbackChatOptions): FallbackCandi
       }
     } else if (primary === 'anthropic') {
       const anthropicFallbacks: FallbackCandidate[] = [
-        { provider: 'openai', model: 'gpt-4o', label: 'Fallback 1 (OpenAI GPT-4o)' },
-        { provider: 'gemini', model: 'gemini-2.0-flash', label: 'Fallback 2 (Gemini 2.0 Flash)' },
-        { provider: 'huggingface', model: HUGGINGFACE_MODELS.QWEN_2_5_72B, label: 'Fallback 3 (HF Qwen 2.5 72B)' },
-        { provider: 'groq', model: 'llama-3.3-70b-versatile', label: 'Fallback 4 (Groq Llama 3.3)' },
+        { provider: 'openai', model: 'gpt-5.4', label: 'Fallback 1 (OpenAI GPT-5.4)' },
+        { provider: 'gemini', model: 'gemini-3.6-flash', label: 'Fallback 2 (Gemini 3.6 Flash)' },
+        { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_3_70B, label: 'Fallback 3 (HF Llama 3.3 70B)' },
+        { provider: 'groq', model: 'groq/compound', label: 'Fallback 4 (Groq Compound)' },
       ];
       for (const c of anthropicFallbacks) {
         if (!candidates.some((existing) => existing.provider === c.provider && existing.model === c.model)) {
@@ -240,10 +240,10 @@ export function buildFallbackLadder(options: FallbackChatOptions): FallbackCandi
       }
     } else if (primary === 'openai') {
       const openaiFallbacks: FallbackCandidate[] = [
-        { provider: 'gemini', model: 'gemini-2.0-flash', label: 'Fallback 1 (Gemini 2.0 Flash)' },
-        { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_1_8B, label: 'Fallback 2 (HF Llama 3.1 8B)' },
-        { provider: 'groq', model: 'llama-3.3-70b-versatile', label: 'Fallback 3 (Groq Llama 3.3)' },
-        { provider: 'anthropic', model: 'claude-3-5-sonnet-latest', label: 'Fallback 4 (Anthropic Claude 3.5)' },
+        { provider: 'gemini', model: 'gemini-3.6-flash', label: 'Fallback 1 (Gemini 3.6 Flash)' },
+        { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_3_70B, label: 'Fallback 2 (HF Llama 3.3 70B)' },
+        { provider: 'groq', model: 'groq/compound', label: 'Fallback 3 (Groq Compound)' },
+        { provider: 'anthropic', model: 'claude-sonnet-4-6', label: 'Fallback 4 (Anthropic Claude Sonnet)' },
       ];
       for (const c of openaiFallbacks) {
         if (!candidates.some((existing) => existing.provider === c.provider && existing.model === c.model)) {
@@ -252,10 +252,11 @@ export function buildFallbackLadder(options: FallbackChatOptions): FallbackCandi
       }
     } else if (primary === 'groq') {
       const groqFallbacks: FallbackCandidate[] = [
-        { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_2_3B, label: 'Fallback 1 (HF Llama 3.2 3B)' },
-        { provider: 'gemini', model: 'gemini-2.0-flash', label: 'Fallback 2 (Gemini 2.0 Flash)' },
-        { provider: 'huggingface', model: HUGGINGFACE_MODELS.QWEN_2_5_7B, label: 'Fallback 3 (HF Qwen 2.5 7B)' },
-        { provider: 'openai', model: 'gpt-4o-mini', label: 'Fallback 4 (OpenAI 4o-mini)' },
+        { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_3_70B, label: 'Fallback 1 (HF Llama 3.3 70B)' },
+        { provider: 'groq', model: 'openai/gpt-oss-120b', label: 'Fallback 2 (Groq GPT-OSS 120B)' },
+        { provider: 'gemini', model: 'gemini-3.6-flash', label: 'Fallback 3 (Gemini 3.6 Flash)' },
+        { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_1_8B, label: 'Fallback 4 (HF Llama 3.1 8B)' },
+        { provider: 'openai', model: 'gpt-4o-mini', label: 'Fallback 5 (OpenAI 4o-mini)' },
       ];
       for (const c of groqFallbacks) {
         if (!candidates.some((existing) => existing.provider === c.provider && existing.model === c.model)) {
@@ -265,11 +266,11 @@ export function buildFallbackLadder(options: FallbackChatOptions): FallbackCandi
     } else {
       // Default (e.g. Gemini or unspecified)
       const defaultLadder: FallbackCandidate[] = [
-        { provider: 'gemini', model: 'gemini-2.0-flash', label: 'Default Path 1 (Gemini 2.0 Flash)' },
-        { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_2_3B, label: 'Default Path 2 (HF Llama 3.2 3B)' },
-        { provider: 'groq', model: 'llama-3.3-70b-versatile', label: 'Default Path 3 (Groq Llama 3.3)' },
-        { provider: 'huggingface', model: HUGGINGFACE_MODELS.QWEN_2_5_7B, label: 'Default Path 4 (HF Qwen 2.5 7B)' },
-        { provider: 'openai', model: 'gpt-4o-mini', label: 'Default Path 5 (OpenAI 4o-mini)' },
+        { provider: 'groq', model: 'groq/compound', label: 'Default Path 1 (Groq Compound)' },
+        { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_3_70B, label: 'Default Path 2 (HF Llama 3.3 70B)' },
+        { provider: 'groq', model: 'openai/gpt-oss-120b', label: 'Default Path 3 (Groq GPT-OSS 120B)' },
+        { provider: 'gemini', model: 'gemini-3.6-flash', label: 'Default Path 4 (Gemini 3.6 Flash)' },
+        { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_1_8B, label: 'Default Path 5 (HF Llama 3.1 8B)' },
       ];
       for (const c of defaultLadder) {
         if (!candidates.some((existing) => existing.provider === c.provider && existing.model === c.model)) {

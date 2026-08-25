@@ -10,14 +10,12 @@ import {
 async function runTests() {
   console.log('--- TEST 1: Hugging Face Model Alias Resolution ---');
   const aliasTests = [
-    { input: 'llama-3.2-3b', expected: HUGGINGFACE_MODELS.LLAMA_3_2_3B },
-    { input: 'llama-3.2-1b', expected: HUGGINGFACE_MODELS.LLAMA_3_2_1B },
-    { input: 'qwen-2.5-7b', expected: HUGGINGFACE_MODELS.QWEN_2_5_7B },
+    { input: 'llama-3.3-70b', expected: HUGGINGFACE_MODELS.LLAMA_3_3_70B },
     { input: 'llama-3.1-8b', expected: HUGGINGFACE_MODELS.LLAMA_3_1_8B },
-    { input: 'mistral-7b', expected: HUGGINGFACE_MODELS.MISTRAL_7B },
-    { input: 'gemma-2-9b', expected: HUGGINGFACE_MODELS.GEMMA_2_9B },
-    { input: 'phi-3.5-mini', expected: HUGGINGFACE_MODELS.PHI_3_5_MINI },
-    { input: 'fast', expected: HUGGINGFACE_MODELS.LLAMA_3_2_3B },
+    { input: 'qwen-2.5-72b', expected: HUGGINGFACE_MODELS.QWEN_2_5_72B },
+    { input: 'deepseek-r1', expected: HUGGINGFACE_MODELS.DEEPSEEK_R1 },
+    { input: 'fast', expected: HUGGINGFACE_MODELS.LLAMA_3_1_8B },
+    { input: 'quality', expected: HUGGINGFACE_MODELS.LLAMA_3_3_70B },
   ];
 
   for (const t of aliasTests) {
@@ -55,7 +53,7 @@ async function runTests() {
   const hfLadder = buildFallbackLadder({
     messages: [{ role: 'user', content: 'test' }],
     provider: 'huggingface',
-    model: 'llama-3.2-3b',
+    model: 'llama-3.3-70b',
   });
 
   console.log('  Hugging Face Primary Ladder:');

@@ -15,7 +15,7 @@ export interface DodoProductConfig {
   name: string;
   description: string;
   priceUsd: number;
-  interval: 'Month' | 'Year';
+  interval: 'Month' | 'Year' | 'OneTime';
   taxCategory: TaxCategory;
 }
 
@@ -23,16 +23,25 @@ export const DODO_PRODUCTS: DodoProductConfig[] = [
   {
     internalId: 'elite_standard',
     brand: 'haggle',
-    name: 'Elite Standard',
+    name: 'Haggle Standard Tier (Monthly)',
     description: 'Managed transcription & AI on Haggle servers.',
     priceUsd: 8,
     interval: 'Month',
     taxCategory: 'saas',
   },
   {
+    internalId: 'elite_standard_yearly',
+    brand: 'haggle',
+    name: 'Haggle Standard Tier (Yearly)',
+    description: 'Managed transcription & AI on Haggle servers (Annual).',
+    priceUsd: 80,
+    interval: 'Year',
+    taxCategory: 'saas',
+  },
+  {
     internalId: 'elite',
     brand: 'haggle',
-    name: 'Elite Pro',
+    name: 'Haggle Pro Tier (Monthly)',
     description: 'Daily professional usage + full Haggle Pro app license + Unlimited BYOK.',
     priceUsd: 15,
     interval: 'Month',
@@ -41,8 +50,8 @@ export const DODO_PRODUCTS: DodoProductConfig[] = [
   {
     internalId: 'elite_yearly',
     brand: 'haggle',
-    name: 'Elite Pro (Annual)',
-    description: 'Daily professional usage + full Haggle Pro app license + Unlimited BYOK.',
+    name: 'Haggle Pro Tier (Yearly)',
+    description: 'Daily professional usage + full Haggle Pro app license + Unlimited BYOK (Annual).',
     priceUsd: 150,
     interval: 'Year',
     taxCategory: 'saas',
@@ -50,19 +59,37 @@ export const DODO_PRODUCTS: DodoProductConfig[] = [
   {
     internalId: 'elite_max',
     brand: 'haggle',
-    name: 'Elite Max',
+    name: 'Haggle Elite Max (Monthly)',
     description: 'Heavy AI usage + Pro app license + Unlimited BYOK.',
     priceUsd: 25,
     interval: 'Month',
     taxCategory: 'saas',
   },
   {
+    internalId: 'elite_max_yearly',
+    brand: 'haggle',
+    name: 'Haggle Elite Max (Yearly)',
+    description: 'Heavy AI usage + Pro app license + Unlimited BYOK (Annual).',
+    priceUsd: 250,
+    interval: 'Year',
+    taxCategory: 'saas',
+  },
+  {
     internalId: 'elite_ultra',
     brand: 'haggle',
-    name: 'Elite Ultra',
+    name: 'Haggle Elite Ultra (Monthly)',
     description: 'Power user AI + Pro app license + Unlimited BYOK.',
     priceUsd: 35,
     interval: 'Month',
+    taxCategory: 'saas',
+  },
+  {
+    internalId: 'elite_ultra_yearly',
+    brand: 'haggle',
+    name: 'Haggle Elite Ultra (Yearly)',
+    description: 'Power user AI + Pro app license + Unlimited BYOK (Annual).',
+    priceUsd: 350,
+    interval: 'Year',
     taxCategory: 'saas',
   },
   {
@@ -81,6 +108,15 @@ export const DODO_PRODUCTS: DodoProductConfig[] = [
     description: 'Pure BYOK standalone license. Bring your own keys & local models.',
     priceUsd: 150,
     interval: 'Year',
+    taxCategory: 'saas',
+  },
+  {
+    internalId: 'haggle_pro_lifetime',
+    brand: 'haggle',
+    name: 'Haggle Pro (Lifetime)',
+    description: 'Pure BYOK standalone lifetime desktop license.',
+    priceUsd: 50,
+    interval: 'OneTime',
     taxCategory: 'saas',
   },
 ];

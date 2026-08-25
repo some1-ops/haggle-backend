@@ -5,25 +5,16 @@ export interface ChatMessage {
   content: string;
 }
 
-// Recommended fast, lightweight, and reliable models on Hugging Face
+// Recommended fast, reliable models on Hugging Face router
 export const HUGGINGFACE_MODELS = {
-  // Fast & Lightweight (Sub-second to 1-2s latency, low memory footprint)
-  LLAMA_3_2_3B: 'meta-llama/Llama-3.2-3B-Instruct',
-  LLAMA_3_2_1B: 'meta-llama/Llama-3.2-1B-Instruct',
-  QWEN_2_5_7B: 'Qwen/Qwen2.5-7B-Instruct',
-  GEMMA_2_2B: 'google/gemma-2-2b-it',
-  PHI_3_5_MINI: 'microsoft/Phi-3.5-mini-instruct',
-
-  // Balanced & High-Throughput (8B class)
+  // Flagship & High-Quality
+  LLAMA_3_3_70B: 'meta-llama/Llama-3.3-70B-Instruct',
   LLAMA_3_1_8B: 'meta-llama/Llama-3.1-8B-Instruct',
-  MISTRAL_7B: 'mistralai/Mistral-7B-Instruct-v0.3',
-  GEMMA_2_9B: 'google/gemma-2-9b-it',
-
-  // Quality / Heavyweight
   QWEN_2_5_72B: 'Qwen/Qwen2.5-72B-Instruct',
+  DEEPSEEK_R1: 'deepseek-ai/DeepSeek-R1',
 } as const;
 
-export const DEFAULT_HF_CHAT_MODEL = HUGGINGFACE_MODELS.LLAMA_3_2_3B;
+export const DEFAULT_HF_CHAT_MODEL = HUGGINGFACE_MODELS.LLAMA_3_3_70B;
 
 /**
  * Resolves convenient short aliases to full Hugging Face model IDs.
@@ -33,28 +24,24 @@ export function resolveHuggingFaceModel(model?: string): string {
 
   const m = model.toLowerCase().trim();
   const aliasMap: Record<string, string> = {
-    // 3.2 Llama
-    'llama-3.2-3b': HUGGINGFACE_MODELS.LLAMA_3_2_3B,
-    'llama-3.2-3b-instruct': HUGGINGFACE_MODELS.LLAMA_3_2_3B,
-    'llama-3.2-1b': HUGGINGFACE_MODELS.LLAMA_3_2_1B,
-    'llama-3.2-1b-instruct': HUGGINGFACE_MODELS.LLAMA_3_2_1B,
-    // 3.1 Llama
+    // Llama 3.3 & 3.1
+    'llama-3.3-70b': HUGGINGFACE_MODELS.LLAMA_3_3_70B,
+    'llama-3.3-70b-instruct': HUGGINGFACE_MODELS.LLAMA_3_3_70B,
+    'llama-3.3': HUGGINGFACE_MODELS.LLAMA_3_3_70B,
     'llama-3.1-8b': HUGGINGFACE_MODELS.LLAMA_3_1_8B,
     'llama-3.1-8b-instruct': HUGGINGFACE_MODELS.LLAMA_3_1_8B,
+    'llama-3.1': HUGGINGFACE_MODELS.LLAMA_3_1_8B,
+    'llama': HUGGINGFACE_MODELS.LLAMA_3_3_70B,
     // Qwen
-    'qwen-2.5-7b': HUGGINGFACE_MODELS.QWEN_2_5_7B,
-    'qwen-2.5-7b-instruct': HUGGINGFACE_MODELS.QWEN_2_5_7B,
-    'qwen-7b': HUGGINGFACE_MODELS.QWEN_2_5_7B,
     'qwen-2.5-72b': HUGGINGFACE_MODELS.QWEN_2_5_72B,
-    // Mistral & Gemma & Phi
-    'mistral-7b': HUGGINGFACE_MODELS.MISTRAL_7B,
-    'gemma-2-2b': HUGGINGFACE_MODELS.GEMMA_2_2B,
-    'gemma-2-9b': HUGGINGFACE_MODELS.GEMMA_2_9B,
-    'phi-3.5-mini': HUGGINGFACE_MODELS.PHI_3_5_MINI,
-    'phi-3.5': HUGGINGFACE_MODELS.PHI_3_5_MINI,
-    // Fast mode generic alias
-    'fast': HUGGINGFACE_MODELS.LLAMA_3_2_3B,
-    'lightweight': HUGGINGFACE_MODELS.LLAMA_3_2_1B,
+    'qwen-2.5-72b-instruct': HUGGINGFACE_MODELS.QWEN_2_5_72B,
+    'qwen': HUGGINGFACE_MODELS.QWEN_2_5_72B,
+    // DeepSeek
+    'deepseek-r1': HUGGINGFACE_MODELS.DEEPSEEK_R1,
+    // Aliases
+    'fast': HUGGINGFACE_MODELS.LLAMA_3_1_8B,
+    'lightweight': HUGGINGFACE_MODELS.LLAMA_3_1_8B,
+    'quality': HUGGINGFACE_MODELS.LLAMA_3_3_70B,
   };
 
   return aliasMap[m] || model;
@@ -86,8 +73,7 @@ export async function callHuggingFace(
   const temperature = options.temperature ?? 0.7;
 
   const endpoints = [
-    'https://router.huggingface.co/hf-inference/v1/chat/completions',
-    'https://api-inference.huggingface.co/v1/chat/completions',
+    'https://router.huggingface.co/v1/chat/completions',
   ];
 
   let lastError: Error | null = null;

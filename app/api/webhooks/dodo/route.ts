@@ -68,11 +68,11 @@ export async function POST(request: Request) {
     string,
     string
   >;
-  const tierId = productId
+  const rawTierId = productId
     ? Object.entries(dodoProductMap).find(([, pid]) => pid === productId)?.[0]
     : 'elite_pro';
 
-  const normalizedTier = tierId || 'elite_pro';
+  const normalizedTier = rawTierId || 'elite_pro';
 
   // 1. Try to invoke the centralized Supabase stored procedure if customer email is known
   if (customerEmail) {
@@ -112,7 +112,11 @@ export async function POST(request: Request) {
       eventType === 'subscription.expired' ||
       eventType === 'subscription.on_hold';
 
-    const credits = normalizedTier === 'elite_standard' ? 50 : normalizedTier === 'elite_pro' ? 150 : normalizedTier === 'elite_max' ? 400 : normalizedTier === 'elite_ultra' ? 1000 : 3;
+    let credits = 3;
+    if (normalizedTier.includes('ultra')) credits = 1000;
+    else if (normalizedTier.includes('max')) credits = 400;
+    else if (normalizedTier.includes('pro') || normalizedTier === 'elite' || normalizedTier === 'elite_yearly') credits = 150;
+    else if (normalizedTier.includes('standard')) credits = 50;
 
     await supabaseAdmin
       .from('profiles')

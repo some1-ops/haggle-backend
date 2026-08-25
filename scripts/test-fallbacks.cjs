@@ -1,38 +1,30 @@
 const HUGGINGFACE_MODELS = {
-  LLAMA_3_2_3B: 'meta-llama/Llama-3.2-3B-Instruct',
-  LLAMA_3_2_1B: 'meta-llama/Llama-3.2-1B-Instruct',
-  QWEN_2_5_7B: 'Qwen/Qwen2.5-7B-Instruct',
-  GEMMA_2_2B: 'google/gemma-2-2b-it',
-  PHI_3_5_MINI: 'microsoft/Phi-3.5-mini-instruct',
+  LLAMA_3_3_70B: 'meta-llama/Llama-3.3-70B-Instruct',
   LLAMA_3_1_8B: 'meta-llama/Llama-3.1-8B-Instruct',
-  MISTRAL_7B: 'mistralai/Mistral-7B-Instruct-v0.3',
-  GEMMA_2_9B: 'google/gemma-2-9b-it',
   QWEN_2_5_72B: 'Qwen/Qwen2.5-72B-Instruct',
+  DEEPSEEK_R1: 'deepseek-ai/DeepSeek-R1',
 };
 
-const DEFAULT_HF_CHAT_MODEL = HUGGINGFACE_MODELS.LLAMA_3_2_3B;
+const DEFAULT_HF_CHAT_MODEL = HUGGINGFACE_MODELS.LLAMA_3_3_70B;
 
 function resolveHuggingFaceModel(model) {
   if (!model) return DEFAULT_HF_CHAT_MODEL;
   const m = model.toLowerCase().trim();
   const aliasMap = {
-    'llama-3.2-3b': HUGGINGFACE_MODELS.LLAMA_3_2_3B,
-    'llama-3.2-3b-instruct': HUGGINGFACE_MODELS.LLAMA_3_2_3B,
-    'llama-3.2-1b': HUGGINGFACE_MODELS.LLAMA_3_2_1B,
-    'llama-3.2-1b-instruct': HUGGINGFACE_MODELS.LLAMA_3_2_1B,
+    'llama-3.3-70b': HUGGINGFACE_MODELS.LLAMA_3_3_70B,
+    'llama-3.3-70b-instruct': HUGGINGFACE_MODELS.LLAMA_3_3_70B,
+    'llama-3.3': HUGGINGFACE_MODELS.LLAMA_3_3_70B,
     'llama-3.1-8b': HUGGINGFACE_MODELS.LLAMA_3_1_8B,
     'llama-3.1-8b-instruct': HUGGINGFACE_MODELS.LLAMA_3_1_8B,
-    'qwen-2.5-7b': HUGGINGFACE_MODELS.QWEN_2_5_7B,
-    'qwen-2.5-7b-instruct': HUGGINGFACE_MODELS.QWEN_2_5_7B,
-    'qwen-7b': HUGGINGFACE_MODELS.QWEN_2_5_7B,
+    'llama-3.1': HUGGINGFACE_MODELS.LLAMA_3_1_8B,
+    'llama': HUGGINGFACE_MODELS.LLAMA_3_3_70B,
     'qwen-2.5-72b': HUGGINGFACE_MODELS.QWEN_2_5_72B,
-    'mistral-7b': HUGGINGFACE_MODELS.MISTRAL_7B,
-    'gemma-2-2b': HUGGINGFACE_MODELS.GEMMA_2_2B,
-    'gemma-2-9b': HUGGINGFACE_MODELS.GEMMA_2_9B,
-    'phi-3.5-mini': HUGGINGFACE_MODELS.PHI_3_5_MINI,
-    'phi-3.5': HUGGINGFACE_MODELS.PHI_3_5_MINI,
-    'fast': HUGGINGFACE_MODELS.LLAMA_3_2_3B,
-    'lightweight': HUGGINGFACE_MODELS.LLAMA_3_2_1B,
+    'qwen-2.5-72b-instruct': HUGGINGFACE_MODELS.QWEN_2_5_72B,
+    'qwen': HUGGINGFACE_MODELS.QWEN_2_5_72B,
+    'deepseek-r1': HUGGINGFACE_MODELS.DEEPSEEK_R1,
+    'fast': HUGGINGFACE_MODELS.LLAMA_3_1_8B,
+    'lightweight': HUGGINGFACE_MODELS.LLAMA_3_1_8B,
+    'quality': HUGGINGFACE_MODELS.LLAMA_3_3_70B,
   };
   return aliasMap[m] || model;
 }
@@ -67,19 +59,19 @@ function buildFallbackLadder(options) {
     if (!normModel) {
       switch (normProvider) {
         case 'groq':
-          normModel = 'llama-3.3-70b-versatile';
+          normModel = 'groq/compound';
           break;
         case 'huggingface':
-          normModel = HUGGINGFACE_MODELS.LLAMA_3_2_3B;
+          normModel = HUGGINGFACE_MODELS.LLAMA_3_3_70B;
           break;
         case 'gemini':
-          normModel = 'gemini-2.0-flash';
+          normModel = 'gemini-3.6-flash';
           break;
         case 'openai':
-          normModel = fastMode ? 'gpt-4o-mini' : 'gpt-4o';
+          normModel = fastMode ? 'gpt-4o-mini' : 'gpt-5.4';
           break;
         case 'anthropic':
-          normModel = 'claude-3-5-sonnet-latest';
+          normModel = 'claude-sonnet-4-6';
           break;
       }
     } else if (normProvider === 'huggingface') {
@@ -91,12 +83,12 @@ function buildFallbackLadder(options) {
 
   if (fastMode) {
     const fastLadder = [
-      { provider: 'groq', model: 'llama-3.3-70b-versatile', label: 'Fast Path 1 (Groq Llama 3.3)' },
-      { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_2_3B, label: 'Fast Path 2 (HF Llama 3.2 3B)' },
-      { provider: 'gemini', model: 'gemini-2.0-flash', label: 'Fast Path 3 (Gemini 2.0 Flash)' },
-      { provider: 'huggingface', model: HUGGINGFACE_MODELS.QWEN_2_5_7B, label: 'Fast Path 4 (HF Qwen 2.5 7B)' },
-      { provider: 'openai', model: 'gpt-4o-mini', label: 'Fast Path 5 (OpenAI 4o-mini)' },
-      { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_2_1B, label: 'Fast Path 6 (HF Llama 3.2 1B)' },
+      { provider: 'groq', model: 'groq/compound', label: 'Fast Path 1 (Groq Compound)' },
+      { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_1_8B, label: 'Fast Path 2 (HF Llama 3.1 8B)' },
+      { provider: 'groq', model: 'openai/gpt-oss-120b', label: 'Fast Path 3 (Groq GPT-OSS 120B)' },
+      { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_3_70B, label: 'Fast Path 4 (HF Llama 3.3 70B)' },
+      { provider: 'gemini', model: 'gemini-3.6-flash', label: 'Fast Path 5 (Gemini 3.6 Flash)' },
+      { provider: 'openai', model: 'gpt-4o-mini', label: 'Fast Path 6 (OpenAI 4o-mini)' },
     ];
 
     for (const c of fastLadder) {
@@ -108,11 +100,11 @@ function buildFallbackLadder(options) {
     const primary = provider?.toLowerCase();
     if (primary === 'huggingface' || primary === 'hf') {
       const hfFallbacks = [
-        { provider: 'huggingface', model: HUGGINGFACE_MODELS.QWEN_2_5_7B, label: 'HF Fallback (Qwen 2.5 7B)' },
-        { provider: 'groq', model: 'llama-3.3-70b-versatile', label: 'Fallback 1 (Groq Llama 3.3)' },
-        { provider: 'gemini', model: 'gemini-2.0-flash', label: 'Fallback 2 (Gemini 2.0 Flash)' },
-        { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_1_8B, label: 'Fallback 3 (HF Llama 3.1 8B)' },
-        { provider: 'openai', model: 'gpt-4o-mini', label: 'Fallback 4 (OpenAI 4o-mini)' },
+        { provider: 'groq', model: 'groq/compound', label: 'Fallback 1 (Groq Compound)' },
+        { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_1_8B, label: 'Fallback 2 (HF Llama 3.1 8B)' },
+        { provider: 'huggingface', model: HUGGINGFACE_MODELS.QWEN_2_5_72B, label: 'Fallback 3 (HF Qwen 2.5 72B)' },
+        { provider: 'gemini', model: 'gemini-3.6-flash', label: 'Fallback 4 (Gemini 3.6 Flash)' },
+        { provider: 'openai', model: 'gpt-5.4', label: 'Fallback 5 (OpenAI GPT-5.4)' },
       ];
       for (const c of hfFallbacks) {
         if (!candidates.some((existing) => existing.provider === c.provider && existing.model === c.model)) {
@@ -121,11 +113,11 @@ function buildFallbackLadder(options) {
       }
     } else {
       const defaultLadder = [
-        { provider: 'gemini', model: 'gemini-2.0-flash', label: 'Default Path 1 (Gemini 2.0 Flash)' },
-        { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_2_3B, label: 'Default Path 2 (HF Llama 3.2 3B)' },
-        { provider: 'groq', model: 'llama-3.3-70b-versatile', label: 'Default Path 3 (Groq Llama 3.3)' },
-        { provider: 'huggingface', model: HUGGINGFACE_MODELS.QWEN_2_5_7B, label: 'Default Path 4 (HF Qwen 2.5 7B)' },
-        { provider: 'openai', model: 'gpt-4o-mini', label: 'Default Path 5 (OpenAI 4o-mini)' },
+        { provider: 'groq', model: 'groq/compound', label: 'Default Path 1 (Groq Compound)' },
+        { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_3_70B, label: 'Default Path 2 (HF Llama 3.3 70B)' },
+        { provider: 'groq', model: 'openai/gpt-oss-120b', label: 'Default Path 3 (Groq GPT-OSS 120B)' },
+        { provider: 'gemini', model: 'gemini-3.6-flash', label: 'Default Path 4 (Gemini 3.6 Flash)' },
+        { provider: 'huggingface', model: HUGGINGFACE_MODELS.LLAMA_3_1_8B, label: 'Default Path 5 (HF Llama 3.1 8B)' },
       ];
       for (const c of defaultLadder) {
         if (!candidates.some((existing) => existing.provider === c.provider && existing.model === c.model)) {
@@ -146,14 +138,12 @@ function buildFallbackLadder(options) {
 async function testAll() {
   console.log('--- TEST 1: Hugging Face Model Alias Resolution ---');
   const aliasTests = [
-    { input: 'llama-3.2-3b', expected: HUGGINGFACE_MODELS.LLAMA_3_2_3B },
-    { input: 'llama-3.2-1b', expected: HUGGINGFACE_MODELS.LLAMA_3_2_1B },
-    { input: 'qwen-2.5-7b', expected: HUGGINGFACE_MODELS.QWEN_2_5_7B },
+    { input: 'llama-3.3-70b', expected: HUGGINGFACE_MODELS.LLAMA_3_3_70B },
     { input: 'llama-3.1-8b', expected: HUGGINGFACE_MODELS.LLAMA_3_1_8B },
-    { input: 'mistral-7b', expected: HUGGINGFACE_MODELS.MISTRAL_7B },
-    { input: 'gemma-2-9b', expected: HUGGINGFACE_MODELS.GEMMA_2_9B },
-    { input: 'phi-3.5-mini', expected: HUGGINGFACE_MODELS.PHI_3_5_MINI },
-    { input: 'fast', expected: HUGGINGFACE_MODELS.LLAMA_3_2_3B },
+    { input: 'qwen-2.5-72b', expected: HUGGINGFACE_MODELS.QWEN_2_5_72B },
+    { input: 'deepseek-r1', expected: HUGGINGFACE_MODELS.DEEPSEEK_R1 },
+    { input: 'fast', expected: HUGGINGFACE_MODELS.LLAMA_3_1_8B },
+    { input: 'quality', expected: HUGGINGFACE_MODELS.LLAMA_3_3_70B },
   ];
 
   for (const t of aliasTests) {
@@ -176,7 +166,7 @@ async function testAll() {
   fastLadder.forEach((p, i) => console.log(`    Path ${i + 1}: ${p.provider} (${p.model}) [${p.label}]`));
   if (fastLadder.length < 3) throw new Error('Expected at least 3 fallback paths for fast mode');
 
-  const hfLadder = buildFallbackLadder({ messages: [{ role: 'user', content: 'test' }], provider: 'huggingface', model: 'llama-3.2-3b' });
+  const hfLadder = buildFallbackLadder({ messages: [{ role: 'user', content: 'test' }], provider: 'huggingface', model: 'llama-3.3-70b' });
   console.log(`\n  Hugging Face Primary (${hfLadder.length} paths):`);
   hfLadder.forEach((p, i) => console.log(`    Path ${i + 1}: ${p.provider} (${p.model}) [${p.label}]`));
   if (hfLadder.length < 3) throw new Error('Expected at least 3 fallback paths for HF primary');
@@ -189,4 +179,7 @@ async function testAll() {
   console.log('\n✅ ALL FALLBACK LADDERS & HUGGING FACE TESTS PASSED!');
 }
 
-testAll().catch(e => { console.error(e); process.exit(1); });
+testAll().catch(e => {
+  console.error(e);
+  process.exit(1);
+});

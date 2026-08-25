@@ -13,12 +13,16 @@ export type SubscriptionTier =
   | 'bootstrapper'
   | 'elite'
   | 'elite_standard'
+  | 'elite_standard_yearly'
   | 'elite_pro'
   | 'elite_yearly'
   | 'elite_max'
+  | 'elite_max_yearly'
   | 'elite_ultra'
+  | 'elite_ultra_yearly'
   | 'command'
   | 'command_yearly'
+  | 'haggle_pro_lifetime'
   | 'mercenary'
   | 'pro';
 
@@ -46,7 +50,7 @@ export interface Plan {
   name: string;
   tagline: string;
   priceUsd: number | null;
-  billingPeriod: 'month' | 'year' | 'free' | 'monthly' | 'yearly' | 'custom';
+  billingPeriod: 'month' | 'year' | 'free' | 'monthly' | 'yearly' | 'lifetime' | 'custom';
   creditsPerMonth: number | null;
   channels: string[];
   dodoProductId: string | null;
@@ -127,8 +131,21 @@ export const PLANS: Record<string, Plan> = {
     billingPeriod: 'monthly',
     creditsPerMonth: 50,
     channels: ['Web App', 'Desktop App', 'Telegram Bot'],
-    dodoProductId: dodoProducts['elite_standard'] || dodoProducts['elite'] || 'pdt_0NlOgX1SFiQLBRRtZudn8',
-    checkoutUrl: buildCheckoutUrl(dodoProducts['elite_standard'] || dodoProducts['elite'] || 'pdt_0NlOgX1SFiQLBRRtZudn8'),
+    dodoProductId: dodoProducts['elite_standard'] || 'pdt_0NlOgX1SFiQLBRRtZudn8',
+    checkoutUrl: buildCheckoutUrl(dodoProducts['elite_standard'] || 'pdt_0NlOgX1SFiQLBRRtZudn8'),
+    features: eliteStandardFeatures,
+  },
+
+  elite_standard_yearly: {
+    id: 'elite_standard_yearly',
+    name: 'Elite Standard (Annual)',
+    tagline: 'Managed transcription & AI on Haggle servers (Annual plan).',
+    priceUsd: 80,
+    billingPeriod: 'yearly',
+    creditsPerMonth: 50,
+    channels: ['Web App', 'Desktop App', 'Telegram Bot'],
+    dodoProductId: dodoProducts['elite_standard_yearly'] || 'pdt_0NlOgX6VkQPJOYkHH8zG5',
+    checkoutUrl: buildCheckoutUrl(dodoProducts['elite_standard_yearly'] || 'pdt_0NlOgX6VkQPJOYkHH8zG5'),
     features: eliteStandardFeatures,
   },
 
@@ -140,8 +157,8 @@ export const PLANS: Record<string, Plan> = {
     billingPeriod: 'monthly',
     creditsPerMonth: 150,
     channels: ['Web App', 'Desktop App', 'Telegram Bot'],
-    dodoProductId: dodoProducts['command'] || dodoProducts['elite_pro'] || 'pdt_0NlOgXC51BIgOcl2xc7Lj',
-    checkoutUrl: buildCheckoutUrl(dodoProducts['command'] || dodoProducts['elite_pro'] || 'pdt_0NlOgXC51BIgOcl2xc7Lj'),
+    dodoProductId: dodoProducts['elite'] || dodoProducts['elite_pro'] || 'pdt_0NlOgXC51BIgOcl2xc7Lj',
+    checkoutUrl: buildCheckoutUrl(dodoProducts['elite'] || dodoProducts['elite_pro'] || 'pdt_0NlOgXC51BIgOcl2xc7Lj'),
     features: eliteProFeatures,
   },
 
@@ -153,8 +170,8 @@ export const PLANS: Record<string, Plan> = {
     billingPeriod: 'yearly',
     creditsPerMonth: 150,
     channels: ['Web App', 'Desktop App', 'Telegram Bot'],
-    dodoProductId: dodoProducts['elite_yearly'] || 'pdt_0NlOgX6VkQPJOYkHH8zG5',
-    checkoutUrl: buildCheckoutUrl(dodoProducts['elite_yearly'] || 'pdt_0NlOgX6VkQPJOYkHH8zG5'),
+    dodoProductId: dodoProducts['elite_yearly'] || 'pdt_0NlOgXFzWb6wM8QXvU6J2',
+    checkoutUrl: buildCheckoutUrl(dodoProducts['elite_yearly'] || 'pdt_0NlOgXFzWb6wM8QXvU6J2'),
     features: eliteProFeatures,
   },
 
@@ -166,8 +183,21 @@ export const PLANS: Record<string, Plan> = {
     billingPeriod: 'monthly',
     creditsPerMonth: 400,
     channels: ['Web App', 'Desktop App', 'Telegram Bot'],
-    dodoProductId: dodoProducts['command_yearly'] || 'pdt_0NlOgXFzWb6wM8QXvU6J2',
-    checkoutUrl: buildCheckoutUrl(dodoProducts['command_yearly'] || 'pdt_0NlOgXFzWb6wM8QXvU6J2'),
+    dodoProductId: dodoProducts['elite_max'] || 'pdt_0NlxMU1pU1un3FHRdm36Y',
+    checkoutUrl: buildCheckoutUrl(dodoProducts['elite_max'] || 'pdt_0NlxMU1pU1un3FHRdm36Y'),
+    features: eliteProFeatures,
+  },
+
+  elite_max_yearly: {
+    id: 'elite_max_yearly',
+    name: 'Elite Max (Annual)',
+    tagline: 'Heavy AI usage + Pro app license + Unlimited BYOK (Annual plan).',
+    priceUsd: 250,
+    billingPeriod: 'yearly',
+    creditsPerMonth: 400,
+    channels: ['Web App', 'Desktop App', 'Telegram Bot'],
+    dodoProductId: dodoProducts['elite_max_yearly'] || 'pdt_0NlxMU78rx4Ciw17x4FlW',
+    checkoutUrl: buildCheckoutUrl(dodoProducts['elite_max_yearly'] || 'pdt_0NlxMU78rx4Ciw17x4FlW'),
     features: eliteProFeatures,
   },
 
@@ -179,8 +209,21 @@ export const PLANS: Record<string, Plan> = {
     billingPeriod: 'monthly',
     creditsPerMonth: 1000,
     channels: ['Web App', 'Desktop App', 'Telegram Bot'],
-    dodoProductId: dodoProducts['elite_yearly'] || 'pdt_0NlOgX6VkQPJOYkHH8zG5',
-    checkoutUrl: buildCheckoutUrl(dodoProducts['elite_yearly'] || 'pdt_0NlOgX6VkQPJOYkHH8zG5'),
+    dodoProductId: dodoProducts['elite_ultra'] || 'pdt_0NlxMUBjhNhSr5fPnIHPy',
+    checkoutUrl: buildCheckoutUrl(dodoProducts['elite_ultra'] || 'pdt_0NlxMUBjhNhSr5fPnIHPy'),
+    features: eliteProFeatures,
+  },
+
+  elite_ultra_yearly: {
+    id: 'elite_ultra_yearly',
+    name: 'Elite Ultra (Annual)',
+    tagline: 'Power user AI + Pro app license + Unlimited BYOK (Annual plan).',
+    priceUsd: 350,
+    billingPeriod: 'yearly',
+    creditsPerMonth: 1000,
+    channels: ['Web App', 'Desktop App', 'Telegram Bot'],
+    dodoProductId: dodoProducts['elite_ultra_yearly'] || 'pdt_0NlxMUFbwbqYB1o1KjjOE',
+    checkoutUrl: buildCheckoutUrl(dodoProducts['elite_ultra_yearly'] || 'pdt_0NlxMUFbwbqYB1o1KjjOE'),
     features: eliteProFeatures,
   },
 
@@ -192,8 +235,8 @@ export const PLANS: Record<string, Plan> = {
     billingPeriod: 'monthly',
     creditsPerMonth: null,
     channels: ['Desktop App', 'Web App'],
-    dodoProductId: dodoProducts['command'] || 'pdt_0NlOgXC51BIgOcl2xc7Lj',
-    checkoutUrl: buildCheckoutUrl(dodoProducts['command'] || 'pdt_0NlOgXC51BIgOcl2xc7Lj'),
+    dodoProductId: dodoProducts['command'] || 'pdt_0NlxMUKU6gXHdzBTONldp',
+    checkoutUrl: buildCheckoutUrl(dodoProducts['command'] || 'pdt_0NlxMUKU6gXHdzBTONldp'),
     features: eliteProFeatures,
   },
 
@@ -205,8 +248,21 @@ export const PLANS: Record<string, Plan> = {
     billingPeriod: 'yearly',
     creditsPerMonth: null,
     channels: ['Desktop App', 'Web App'],
-    dodoProductId: dodoProducts['command_yearly'] || 'pdt_0NlOgXFzWb6wM8QXvU6J2',
-    checkoutUrl: buildCheckoutUrl(dodoProducts['command_yearly'] || 'pdt_0NlOgXFzWb6wM8QXvU6J2'),
+    dodoProductId: dodoProducts['command_yearly'] || 'pdt_0NlxMUOm31CNCUIf28Zr1',
+    checkoutUrl: buildCheckoutUrl(dodoProducts['command_yearly'] || 'pdt_0NlxMUOm31CNCUIf28Zr1'),
+    features: eliteProFeatures,
+  },
+
+  haggle_pro_lifetime: {
+    id: 'haggle_pro_lifetime',
+    name: 'Haggle Pro (Lifetime)',
+    tagline: 'Pure BYOK standalone lifetime desktop license.',
+    priceUsd: 50,
+    billingPeriod: 'lifetime',
+    creditsPerMonth: null,
+    channels: ['Desktop App', 'Web App'],
+    dodoProductId: dodoProducts['haggle_pro_lifetime'] || 'pdt_0NlxMUU4haRgZwQ2pYGMA',
+    checkoutUrl: buildCheckoutUrl(dodoProducts['haggle_pro_lifetime'] || 'pdt_0NlxMUU4haRgZwQ2pYGMA'),
     features: eliteProFeatures,
   },
 };
@@ -218,12 +274,16 @@ export function normalizeTier(tier: string | undefined | null): string {
   if (!tier) return 'free';
   const t = tier.toLowerCase().trim().replace(/\s+/g, '_');
   if (t === 'bootstrapper' || t === 'free') return 'free';
+  if (t === 'elite_standard_yearly' || (t.includes('standard') && (t.includes('year') || t.includes('annual')))) return 'elite_standard_yearly';
   if (t === 'elite_standard' || t === 'standard') return 'elite_standard';
+  if (t === 'elite_max_yearly' || (t.includes('max') && (t.includes('year') || t.includes('annual')))) return 'elite_max_yearly';
   if (t === 'elite_max' || t === 'max') return 'elite_max';
+  if (t === 'elite_ultra_yearly' || (t.includes('ultra') && (t.includes('year') || t.includes('annual')))) return 'elite_ultra_yearly';
   if (t === 'elite_ultra' || t === 'ultra') return 'elite_ultra';
   if (t === 'elite_yearly' || t === 'yearly' || t === 'annual') return 'elite_yearly';
   if (t === 'elite_pro' || t === 'elite' || t === 'pro' || t === 'mercenary') return 'elite';
   if (t === 'command_yearly') return 'command_yearly';
+  if (t === 'haggle_pro_lifetime' || t === 'lifetime' || t.includes('lifetime')) return 'haggle_pro_lifetime';
   if (t === 'command' || t.includes('command')) return 'command';
   return 'free';
 }

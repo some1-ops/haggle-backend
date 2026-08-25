@@ -96,7 +96,31 @@ export async function resolveUser(request: Request, fallbackToken?: string | nul
     }
   }
 
-  // 3. Supabase Auth Session Token
+  // 3. Free Trial Token Lookup (haggle_trial_..., trial_..., or __trial__)
+  if (token.startsWith('haggle_trial_') || token.startsWith('trial_') || token === '__trial__' || request.headers.get('x-trial-token')) {
+    const trialToken = request.headers.get('x-trial-token') || token;
+    const tokenHash = crypto.createHash('sha256').update(trialToken).digest('hex').slice(0, 16);
+    const plan = getPlan('free') ?? {
+      id: 'free',
+      name: 'Bootstrapper (Trial)',
+      priceUsd: 0,
+      billingPeriod: 'free' as const,
+      creditsPerMonth: 3,
+      features: { byok: false, webApp: true, customPrompts: false, prioritySupport: false },
+      dodoProductId: null,
+      buildCheckoutUrl: () => null,
+    };
+
+    return {
+      id: `trial_${tokenHash}`,
+      email: undefined,
+      tierId: 'free',
+      plan,
+      availableCredits: 3,
+    };
+  }
+
+  // 4. Supabase Auth Session Token
   const { data: userResult, error: userErr } = await supabaseAdmin.auth.getUser(token);
   if (!userErr && userResult?.user) {
     const { data: profile, error: profileErr } = await supabaseAdmin
