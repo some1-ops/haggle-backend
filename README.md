@@ -1,11 +1,11 @@
 # Haggle API
 
-Backend for Haggle Desktop — replaces the old `api.natively.software`.
+Backend for Haggle Desktop & Web — Real-time conversation intelligence runtime.
 
 ## What's built & operational
 
 - **`GET /v1/pricing`** — Reads from `lib/plans.ts`, the single source of truth for pricing and entitlements.
-- **`POST /v1/negotiations/start`** — Call this ONCE per negotiation when the session starts. This is the only place a credit gets deducted. Returns `{ sessionId }`.
+- **`POST /v1/negotiations/start`** — Call this ONCE per conversation session when audio capture starts. This is the only place a credit gets deducted. Returns `{ sessionId }`.
 - **`POST /v1/stt/session`** — Issues short-lived scoped session tokens for speech-to-text with automatic rotation and failover across **Deepgram**, **ElevenLabs**, **Azure Speech**, **IBM Watson**, and **Hugging Face** (`openai/whisper-large-v3-turbo`). Supports optional `?provider=<name>` override and multiple keys per provider.
 - **`POST /v1/stt/transcribe`** — Direct speech-to-text audio transcription endpoint (multipart form data or raw audio) with automatic multi-path and multi-key fallback across Hugging Face Whisper Turbo, Groq Whisper, OpenAI Whisper, and Deepgram.
 - **`POST /v1/chat`** — AI provider proxy with resilient **multi-key & multi-path automatic fallback cascades** across **Hugging Face**, **Groq**, **Gemini**, **OpenAI**, and **Anthropic**. If one key or provider hits a rate limit (429), quota issue, or outage, the request automatically fails over to alternative keys and next configured providers without stopping operations.

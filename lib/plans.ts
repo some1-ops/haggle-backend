@@ -113,7 +113,7 @@ export const PLANS: Record<string, Plan> = {
   free: {
     id: 'free',
     name: 'Bootstrapper',
-    tagline: 'Learn the ropes with 3 free trial meeting credits.',
+    tagline: 'Get started with 3 free conversation intelligence credits.',
     priceUsd: 0,
     billingPeriod: 'free',
     creditsPerMonth: 3,
