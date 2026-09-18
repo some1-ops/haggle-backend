@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
+    "@tavily/core": "^0.7.13",
+    "@tiny-fish/sdk": "^0.7.0",
     "dodopayments": "^2.45.1",
     "next": "^15.0.0",
     "react": "^18.3.1",

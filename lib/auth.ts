@@ -11,6 +11,22 @@ export interface ResolvedUser {
 
 import crypto from 'crypto';
 
+interface CachedUserEntry {
+  user: ResolvedUser;
+  expiresAt: number;
+}
+
+const userCache = new Map<string, CachedUserEntry>();
+const USER_CACHE_TTL_MS = 60 * 1000; // 60 seconds
+
+export function evictUserFromCache(userId: string) {
+  for (const [key, entry] of userCache.entries()) {
+    if (entry.user.id === userId) {
+      userCache.delete(key);
+    }
+  }
+}
+
 /**
  * Desktop app, CLI, and website can authenticate via:
  * 1. Supabase User JWT session token (`Bearer eyJ...`)
@@ -28,6 +44,17 @@ export async function resolveUser(request: Request, fallbackToken?: string | nul
   }
 
   if (!token) return null;
+
+  const cacheKey = token.slice(0, 48);
+  const cached = userCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.user;
+  }
+
+  const setUserCache = (user: ResolvedUser) => {
+    userCache.set(cacheKey, { user, expiresAt: Date.now() + USER_CACHE_TTL_MS });
+    return user;
+  };
 
   // 1. Managed API Key Lookup (hgl_live_... or alg_...)
   if (token.startsWith('hgl_live_') || token.startsWith('alg_')) {
@@ -57,13 +84,13 @@ export async function resolveUser(request: Request, fallbackToken?: string | nul
         const tierId = profile?.subscription_tier || apiKeyRow.tier || 'pro';
         const plan = getPlan(tierId) ?? getPlan('free')!;
 
-        return {
+        return setUserCache({
           id: apiKeyRow.user_id,
           email: profile?.email,
           tierId,
           plan,
           availableCredits: profile?.available_credits ?? 100,
-        };
+        });
       }
     } catch (e: any) {
       console.warn('resolveUser: API key lookup error', e.message);
@@ -83,13 +110,13 @@ export async function resolveUser(request: Request, fallbackToken?: string | nul
       if (!licErr && licenseRow) {
         const tierId = licenseRow.tier || 'command';
         const plan = getPlan(tierId) ?? getPlan('command')!;
-        return {
+        return setUserCache({
           id: licenseRow.user_id || `lic_${licenseRow.id}`,
           email: licenseRow.email,
           tierId,
           plan,
           availableCredits: 9999, // Unmetered / BYOK standalone license
-        };
+        });
       }
     } catch (e: any) {
       console.warn('resolveUser: license key lookup error', e.message);
@@ -111,13 +138,13 @@ export async function resolveUser(request: Request, fallbackToken?: string | nul
       buildCheckoutUrl: () => null,
     };
 
-    return {
+    return setUserCache({
       id: `trial_${tokenHash}`,
       email: undefined,
       tierId: 'free',
       plan,
       availableCredits: 3,
-    };
+    });
   }
 
   // 4. Supabase Auth Session Token
@@ -131,13 +158,13 @@ export async function resolveUser(request: Request, fallbackToken?: string | nul
 
     if (!profileErr && profile) {
       const plan = getPlan(profile.subscription_tier) ?? getPlan('free')!;
-      return {
+      return setUserCache({
         id: userResult.user.id,
         email: userResult.user.email,
         tierId: profile.subscription_tier,
         plan,
         availableCredits: profile.available_credits,
-      };
+      });
     }
   }
 
@@ -159,6 +186,7 @@ export function hasCreditsRemaining(user: ResolvedUser): boolean {
 
 /** Atomic — uses the existing deduct_credit RPC rather than a read-then-write. */
 export async function deductCredit(userId: string) {
+  evictUserFromCache(userId);
   const { error } = await supabaseAdmin.rpc('deduct_credit', { target_user_id: userId });
   if (error) console.error('deductCredit RPC failed', error);
 }
